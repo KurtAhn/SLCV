@@ -58,10 +58,14 @@ class SLCV1:
                 self._f = f = o.minimize(j, name='f')
                 tf.add_to_collection('f', self._f)
 
-    def _restore(self, mdldir):
+    def _restore(self, mdldir, epoch):
         g = tf.get_default_graph()
-        tf.train.import_meta_graph(path.join(mdldir, '_.meta'))\
-            .restore(tf.get_default_session(),
+        meta = tf.train.import_meta_graph(path.join(mdldir, '_.meta'))
+        if epoch:
+            with open(path.join(mdldir, 'checkpoint'), 'w') as f:
+                f.write('model_checkpoint_path: "' +
+                        path.join(mdldir, '_-{}'.format(epoch)) + '"')
+        meta.restore(tf.get_default_session(),
                      tf.train.latest_checkpoint(mdldir))
         for name in 'lsypj':
             setattr(self, '_'+name,

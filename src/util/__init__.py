@@ -36,5 +36,5 @@ class Report:
         print2()
 
     @property
-    def total_loss(self):
-        return self._total_loss
+    def avg_loss(self):
+        return self._total_loss / self._iterations

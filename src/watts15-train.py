@@ -97,9 +97,12 @@ if __name__ == '__main__':
 
             if epoch > 15 and \
                dev_loss is not None and \
-               dev_loss < dev_report.total_loss:
+               dev_loss < dev_report.avg_loss:
                 break
-            dev_loss = dev_report.total_loss
+            dev_loss = dev_report.avg_loss
+
+            print1("{},{:.3e},{:.3e}".format(epoch, trn_report.avg_loss, dev_report.avg_loss))
+            flush1()
 
             if epoch == 1:
                 tf.train.export_meta_graph(

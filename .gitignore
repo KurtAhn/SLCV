@@ -1,3 +1,4 @@
+*.pyc
 data/
 config/
 ./config.json
