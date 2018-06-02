@@ -14,31 +14,33 @@ from random import shuffle
 if __name__ == '__main__':
     p = ArgumentParser()
     p.add_argument('-m', '--model', dest='model', required=True)
-    p.add_argument('-e', '--epoch', dest='epoch', type=int, default=None)
+    p.add_argument('-e', '--epoch', dest='epoch', type=int, default=0)
     p.add_argument('-s', '--senlst', dest='senlst', required=True)
     p.add_argument('-n', '--ndataset', dest='ndataset', type=int, default=None)
     p.add_argument('-b', '--nbatch', dest='nbatch', type=int, default=256)
     a = p.parse_args()
-
-    print2('----MODEL CONFIGURATION----')
-    print2('Control: ', NC)
-    print2('Depth: ', DP)
-    print2('Nodes per layer: ', NH)
-    print2('---------------------------')
-    flush2()
-
-    with open(a.senlst) as f:
-        sentences = [l.rstrip() for l in f]
-    records = [path.join(TRNDIR, s+'.tfr') for s in sentences]
-    shuffle(records)
 
     try:
         mkdir(path.join(MDLDIR, a.model))
     except FileExistsError:
         pass
 
+    log_path = path.join(MDLDIR, a.model, 'log.txt')
+    with open(log_path, 'a') as f:
+        f.write('----MODEL CONFIGURATION----\n')
+        f.write('Control: {}\n'.format(NC))
+        f.write('Depth: {}\n'.format(DP))
+        f.write('Nodes per layer: {}\n'.format(NH))
+        f.write('---------------------------\n')
+        f.flush()
+
+    with open(a.senlst) as f:
+        sentences = [l.rstrip() for l in f]
+    records = [path.join(TRNDIR, s+'.tfr') for s in sentences]
+    shuffle(records)
+
     with tf.Session().as_default() as session:
-        if a.epoch is None:
+        if a.epoch == 0:
             model = SLCV1(sentences=sentences,
                           nl=NL,
                           nc=NC,
@@ -49,7 +51,9 @@ if __name__ == '__main__':
             session.run(tf.global_variables_initializer())
             session.run(tf.tables_initializer())
         else:
-            model = SLCV1(mdldir=path.join(MDLDIR, a.model))
+            model = SLCV1(mdldir=path.join(MDLDIR, a.model), epoch=a.epoch)
+            #session.run(tf.global_variables_initializer())
+            session.run(tf.tables_initializer())
 
         saver = tf.train.Saver(max_to_keep=0)
 
@@ -67,7 +71,7 @@ if __name__ == '__main__':
 
         print2('Dataset created')
 
-        epoch = 1
+        epoch = a.epoch+1
         dev_loss = None
         while True:
             print2('Training epoch', epoch)
@@ -95,14 +99,10 @@ if __name__ == '__main__':
                     break
             dev_report.flush()
 
-            if epoch > 15 and \
-               dev_loss is not None and \
-               dev_loss < dev_report.avg_loss:
-                break
-            dev_loss = dev_report.avg_loss
-
-            print1("{},{:.3e},{:.3e}".format(epoch, trn_report.avg_loss, dev_report.avg_loss))
-            flush1()
+            with open(log_path, 'a') as f:
+                f.write("{},{:.3e},{:.3e}\n"\
+                        .format(epoch, trn_report.avg_loss, dev_report.avg_loss))
+                f.flush()
 
             if epoch == 1:
                 tf.train.export_meta_graph(
@@ -113,3 +113,9 @@ if __name__ == '__main__':
                        global_step=epoch,
                        write_meta_graph=False)
             epoch += 1
+
+            if epoch > 15 and \
+               dev_loss is not None and \
+               dev_loss < dev_report.avg_loss:
+                break
+            dev_loss = dev_report.avg_loss
