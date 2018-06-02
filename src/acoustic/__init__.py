@@ -1,29 +1,31 @@
+from __init__ import *
 import numpy as np
 
 
-AX_LEN = 0
-MAG_LEN = 60
-REAL_LEN = 45
-IMAG_LEN = 45
-LF0_LEN = 1
+AX_DIM = 0
+MAG_DIM = cfg_data.get('magnitude-dim', 60)
+PHASE_DIM = cfg_data.get('phase-dim', 45)
+REAL_DIM = PHASE_DIM
+IMAG_DIM = PHASE_DIM
+LF0_DIM = 1
 
 
-MAG = slice(AX_LEN, AX_LEN+MAG_LEN)
-AX_LEN += MAG_LEN
-REAL = slice(AX_LEN, AX_LEN+REAL_LEN)
-AX_LEN += REAL_LEN
-IMAG = slice(AX_LEN, AX_LEN+IMAG_LEN)
-AX_LEN += IMAG_LEN
-LF0 = slice(AX_LEN, AX_LEN+LF0_LEN)
-AX_LEN += LF0_LEN
+MAG = slice(AX_DIM, AX_DIM+MAG_DIM)
+AX_DIM += MAG_DIM
+REAL = slice(AX_DIM, AX_DIM+REAL_DIM)
+AX_DIM += REAL_DIM
+IMAG = slice(AX_DIM, AX_DIM+IMAG_DIM)
+AX_DIM += IMAG_DIM
+LF0 = slice(AX_DIM, AX_DIM+LF0_DIM)
+AX_DIM += LF0_DIM
 
 
 def acoustic(**kwargs):
     rows = kwargs.get('rows', 1)
-    return np.concatenate([kwargs.get('mag', np.zeros([rows,MAG_LEN])),
-                           kwargs.get('real', np.zeros([rows, REAL_LEN])),
-                           kwargs.get('imag', np.zeros([rows, IMAG_LEN])),
-                           kwargs.get('lf0', np.zeros([rows, LF0_LEN]))
+    return np.concatenate([kwargs.get('mag', np.zeros([rows,MAG_DIM])),
+                           kwargs.get('real', np.zeros([rows, REAL_DIM])),
+                           kwargs.get('imag', np.zeros([rows, IMAG_DIM])),
+                           kwargs.get('lf0', np.zeros([rows, LF0_DIM]))
                            ], axis=1)
 
 
@@ -48,6 +50,9 @@ def acceleration(a):
 
 
 def interpolate_f0(a):
+    '''
+    From Merline somewhere... Probably not needed.
+    '''
     f = a[:,LF0]
     a_ = np.copy(a)
     f_ = a_[:,LF0]

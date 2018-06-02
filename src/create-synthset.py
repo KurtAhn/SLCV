@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-
 from __init__ import *
 from os import path
 from argparse import ArgumentParser
@@ -35,7 +34,7 @@ if __name__ == '__main__':
 
         with open(path.join(a.txtdir, s+'.txt')) as f:
             words = re.sub(r'[^ A-Za-z\']','', next(f).lower()).split()
-        #print(words)
+        #print2(words)
 
         n = 0
         z = [words[0]]
@@ -52,7 +51,7 @@ if __name__ == '__main__':
                     try:
                         z.append(words[n])
                     except IndexError:
-                        #print(s, t, x.shape, x[:,ds.WORD])
+                        #print2(s, t, x.shape, x[:,ds.WORD])
                         raise
             except IndexError:
                 continue

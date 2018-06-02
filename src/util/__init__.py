@@ -1,10 +1,6 @@
-import sys
+from __init__ import *
 from time import time
 from collections import deque
-
-
-def eprint(*args, **kwargs):
-    print(*args, file=sys.stderr, **kwargs)
 
 
 class Report:
@@ -24,7 +20,7 @@ class Report:
         self._durations.append(t1 - self._time)
         self._time = t1
 
-        eprint('\rEpoch: {e}'
+        print2('\rEpoch: {e}'
                ' Iteration: {i}'
                ' Loss: {l:.3e}'
                ' Avg: {a:.3e}'
@@ -37,7 +33,7 @@ class Report:
         ), end='')
 
     def flush(self):
-        eprint()
+        print2()
 
     @property
     def total_loss(self):

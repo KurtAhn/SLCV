@@ -1,31 +1,26 @@
-#!/usr/bin/python3
-
+#!/usr/bin/env python
 from __init__ import *
+import sys, os
+sys.path.append(os.environ['MAGPHASE'])
+import libutils as lu
 from os import path
-from argparse import ArgumentParser
 import acoustic as ax
 import dataset as ds
 import tensorflow as tf
-sys.path.append('/home/kurt/Documents/etc/magphase/src')
-import libutils as lu
 import re
+from argparse import ArgumentParser
 
 
 if __name__ == '__main__':
     p = ArgumentParser()
     p.add_argument('-s', '--senlst', dest='senlst', required=True)
-    p.add_argument('-l', '--labdir', dest='labdir', default=LABNDIR)
-    p.add_argument('-a', '--acodir', dest='acodir', default=ACODDIR)
-    p.add_argument('-x', '--sttdir', dest='sttdir', default=STTDIR)
-    p.add_argument('-t', '--txtdir', dest='txtdir', default=TXTDIR)
-    p.add_argument('-o', '--outdir', dest='outdir', default=TRNDIR)
     a = p.parse_args()
 
     with open(a.senlst) as f:
         sentences = [l.rstrip() for l in f if l]
 
-    mean = lu.read_binfile(path.join(a.sttdir, 'mean'), dim=ds.AX_LEN)
-    stddev = lu.read_binfile(path.join(a.sttdir, 'stddev'), dim=ds.AX_LEN)
+    mean = lu.read_binfile(path.join(STTDIR, 'mean'), dim=ds.AX_DIM)
+    stddev = lu.read_binfile(path.join(STTDIR, 'stddev'), dim=ds.AX_DIM)
 
     F = tf.train.Feature
     FF = tf.train.Features
@@ -34,12 +29,12 @@ if __name__ == '__main__':
     FL = tf.train.FloatList
 
     for s in sentences:
-        x = lu.read_binfile(path.join(a.labdir, s+'.lab'), dim=ds.LX_LEN)
-        y = lu.read_binfile(path.join(a.acodir, s+'.aco'), dim=ds.AX_LEN)
+        x = lu.read_binfile(path.join(LAB3DIR, s+'.lab'), dim=ds.LX_DIM)
+        y = lu.read_binfile(path.join(ACO3DIR, s+'.aco'), dim=ds.AX_DIM)
         y = ax.standardize(y, mean, stddev)
         #eprint(y.shape)
 
-        with open(path.join(a.txtdir, s+'.txt')) as f:
+        with open(path.join(TXTDIR, s+'.txt')) as f:
             words = re.sub(r'[^ A-Za-z\']','', next(f).lower()).split()
         #print(words)
 
@@ -63,7 +58,7 @@ if __name__ == '__main__':
             except IndexError:
                 continue
 
-        with tf.python_io.TFRecordWriter(path.join(a.outdir, s+'.tfr')) as w:
+        with tf.python_io.TFRecordWriter(path.join(TRNDIR, s+'.tfr')) as w:
             for xt, yt, zt in zip(x, y, z):
                 feature = {
                     's': F(bytes_list=BL(value=[bytes(s, encoding='ascii')])),
@@ -74,4 +69,5 @@ if __name__ == '__main__':
                 example = E(features=FF(feature=feature))
                 w.write(example.SerializeToString())
 
-        print(s)
+        print1(s)
+        flush1()

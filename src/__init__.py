@@ -1,29 +1,76 @@
+from __future__ import print_function
+import json
+
+
+with open('config.json') as f:
+    config = json.load(f)
+cfg_data = config['data']
+cfg_dir = config['directories']
+cfg_net = config['network']
+cfg_log = config['log']
+
+
 import sys
 from os import path
 
 
 PRJDIR = path.dirname(path.dirname(path.realpath(sys.argv[0])))
-DATDIR = path.join(PRJDIR, 'data')
-MDLDIR = path.join(DATDIR, 'models')
-ALNDIR = path.join(DATDIR, 'hts')
-ALNRDIR = path.join(DATDIR, 'hts2')
-LABDIR = path.join(DATDIR, 'lab')
-LABTDIR = path.join(DATDIR, 'labt')
-LABNDIR = path.join(DATDIR, 'labtn')
-ACODIR = path.join(DATDIR, 'aco')
-ACOTDIR = path.join(DATDIR, 'acot')
-#ACODDIR = path.join(DATDIR, 'acotd')
-ACODDIR = path.join(DATDIR, 'acotd-noint')
-TXTDIR = path.join(DATDIR, 'txt')
-TRNDIR = path.join(DATDIR, 'train')
-TRNDIR = path.join(DATDIR, 'train-noint')
-SYNDIR = path.join(DATDIR, 'synth')
-STTDIR = path.join(DATDIR, 'stats')
-STTDIR = path.join(DATDIR, 'stats-noint')
-OUTDIR = path.join(DATDIR, 'out')
-RESDIR = path.join(PRJDIR, 'res')
 SRCDIR = path.join(PRJDIR, 'src')
+RESDIR = path.join(PRJDIR, 'res')
+DATDIR = path.join(PRJDIR, 'data') # for default values
+MDLDIR = cfg_dir.get('models', path.join(DATDIR, 'models'))\
+         .replace('$', PRJDIR)
+WAVDIR = cfg_dir.get('sounds', path.join(DATDIR, 'wav'))\
+         .replace('$', PRJDIR)
+HTS1DIR = cfg_dir.get('raw-states', path.join(DATDIR, 'hts1'))\
+          .replace('$', PRJDIR)
+HTS2DIR = cfg_dir.get('realigned-states', path.join(DATDIR, 'hts2'))\
+          .replace('$', PRJDIR)
+LAB1DIR = cfg_dir.get('raw-linguistics', path.join(DATDIR, 'lab1'))\
+          .replace('$', PRJDIR)
+LAB2DIR = cfg_dir.get('trimmed-linguistics', path.join(DATDIR, 'lab2'))\
+          .replace('$', PRJDIR)
+LAB3DIR = cfg_dir.get('normalized-linguistics', path.join(DATDIR, 'lab3'))\
+          .replace('$', PRJDIR)
+ACO1DIR = cfg_dir.get('raw-acoustics', path.join(DATDIR, 'aco1'))\
+          .replace('$', PRJDIR)
+ACO2DIR = cfg_dir.get('trimmed-acoustics', path.join(DATDIR, 'aco2'))\
+          .replace('$', PRJDIR)
+ACO3DIR = cfg_dir.get('delta-acoustics', path.join(DATDIR, 'aco3'))\
+          .replace('$', PRJDIR)
+TXTDIR = cfg_dir.get('transcripts', path.join(DATDIR, 'txt'))\
+          .replace('$', PRJDIR)
+STTDIR = cfg_dir.get('statistics', path.join(DATDIR, 'stats'))\
+          .replace('$', PRJDIR)
+TRNDIR = cfg_dir.get('trainset', path.join(DATDIR, 'trainset'))\
+          .replace('$', PRJDIR)
+SYNDIR = cfg_dir.get('synthset', path.join(DATDIR, 'synthset'))\
+          .replace('$', PRJDIR)
+OUTDIR = cfg_dir.get('synthesized', path.join(DATDIR, 'out'))\
+          .replace('$', PRJDIR)
+
+STDOUT = config.get('redirect-stdout', '&1')
+STDOUT = sys.stdout if STDOUT == '&1' else \
+         sys.stderr if STDOUT == '&2' else \
+         open(STDOUT, 'w')
+
+STDERR = config.get('redirect-stderr', '&2')
+STDERR = sys.stdout if STDERR == '&1' else \
+         sys.stderr if STDERR == '&2' else \
+         open(STDERR, 'w')
 
 
-def eprint(*args, **kwargs):
-    print(*args, file=sys.stderr, **kwargs)
+def print1(*args, **kwargs):
+    print(*args, file=STDOUT, **kwargs)
+
+
+def print2(*args, **kwargs):
+    print(*args, file=STDERR, **kwargs)
+
+
+def flush1():
+    STDOUT.flush()
+
+
+def flush2():
+    STDERR.flush()

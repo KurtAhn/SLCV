@@ -1,1 +1,4 @@
 data/
+config/
+./config.json
+setup.sh
