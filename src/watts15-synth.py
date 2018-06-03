@@ -22,7 +22,6 @@ if __name__ == '__main__':
     p.add_argument('-s', '--senlst', dest='senlst', required=True)
     p.add_argument('-m', '--model', dest='model', required=True)
     p.add_argument('-e', '--epoch', dest='epoch', type=int, required=True)
-    #p.add_argument('-o', '--outdir', dest='outdir', default=OUTDIR)
     p.add_argument('-c', '--control', dest='control', type=float, nargs=NC, required=True)
     a = p.parse_args()
 
@@ -32,7 +31,7 @@ if __name__ == '__main__':
     mean = lu.read_binfile(path.join(STTDIR, 'mean'), dim=ds.AX_DIM)
     stddev = lu.read_binfile(path.join(STTDIR, 'stddev'), dim=ds.AX_DIM)
 
-    outdir = OUTDIR
+    outdir = SYNDIR
     for level in [a.model,
                   str(a.epoch),
                   ','.join(['{:.3f}'.format(e) for e in a.control])]:

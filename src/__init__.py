@@ -42,11 +42,13 @@ TXTDIR = cfg_dir.get('transcripts', path.join(DATDIR, 'txt'))\
           .replace('$', PRJDIR)
 STTDIR = cfg_dir.get('statistics', path.join(DATDIR, 'stats'))\
           .replace('$', PRJDIR)
-TRNDIR = cfg_dir.get('trainset', path.join(DATDIR, 'trainset'))\
+TRNDIR = cfg_dir.get('training', path.join(DATDIR, 'training'))\
           .replace('$', PRJDIR)
-SYNDIR = cfg_dir.get('synthset', path.join(DATDIR, 'synthset'))\
+VALDIR = cfg_dir.get('validation', path.join(DATDIR, 'validation'))\
           .replace('$', PRJDIR)
-OUTDIR = cfg_dir.get('synthesized', path.join(DATDIR, 'out'))\
+TSTDIR = cfg_dir.get('testing', path.join(DATDIR, 'training'))\
+          .replace('$', PRJDIR)
+SYNDIR = cfg_dir.get('synthesized', path.join(DATDIR, 'synthesized'))\
           .replace('$', PRJDIR)
 
 STDOUT = config.get('redirect-stdout', '&1')
