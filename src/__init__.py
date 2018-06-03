@@ -3,7 +3,7 @@ import json
 import sys
 from os import path
 
-def load_config(path):
+def load_config(filepath):
     global config, cfg_data, cfg_dir, cfg_net, cfg_log,\
            PRJDIR, SRCDIR, RESDIR, DATDIR, MDLDIR, WAVDIR,\
            HTS1DIR, HTS2DIR, LAB1DIR, LAB2DIR, LAB3DIR,\
@@ -11,7 +11,7 @@ def load_config(path):
            TRNDIR, VALDIR, TSTDIR, SYNDIR,\
            STDOUT, STDERR, VERBOSE
 
-    with open(path) as f:
+    with open(filepath) as f:
         config = json.load(f)
     cfg_data = config['data']
     cfg_dir = config['directories']
