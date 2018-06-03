@@ -51,16 +51,17 @@ TSTDIR = cfg_dir.get('testing', path.join(DATDIR, 'training'))\
 SYNDIR = cfg_dir.get('synthesized', path.join(DATDIR, 'synthesized'))\
           .replace('$', PRJDIR)
 
-STDOUT = config.get('redirect-stdout', '&1')
+STDOUT = cfg_log.get('redirect-stdout', '&1')
 STDOUT = sys.stdout if STDOUT == '&1' else \
          sys.stderr if STDOUT == '&2' else \
          open(STDOUT, 'w')
 
-STDERR = config.get('redirect-stderr', '&2')
+STDERR = cfg_log.get('redirect-stderr', '&2')
 STDERR = sys.stdout if STDERR == '&1' else \
          sys.stderr if STDERR == '&2' else \
          open(STDERR, 'w')
 
+VERBOSE = cfg_log.get('verbose', True)
 
 def print1(*args, **kwargs):
     print(*args, file=STDOUT, **kwargs)

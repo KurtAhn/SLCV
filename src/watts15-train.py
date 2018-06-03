@@ -91,7 +91,7 @@ if __name__ == '__main__':
             while True:
                 try:
                     loss, out = model.predict(*session.run(v_example))
-                    v_report.report(v_loss)
+                    v_report.report(loss)
                 except tf.errors.OutOfRangeError:
                     break
             v_report.flush()

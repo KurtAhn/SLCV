@@ -20,17 +20,18 @@ class Report:
         self._durations.append(t1 - self._time)
         self._time = t1
 
-        print2('\rEpoch: {e}'
-               ' Iteration: {i}'
-               ' Loss: {l:.3e}'
-               ' Avg: {a:.3e}'
-               ' It./s: {s:.3f}'.format(
-            e=self._epoch,
-            i=self._iterations,
-            l=loss,
-            a=self._total_loss / self._iterations,
-            s=len(self._durations) / sum(self._durations)
-        ), end='')
+        if VERBOSE:
+            print2('\rEpoch: {e}'
+                   ' Iteration: {i}'
+                   ' Loss: {l:.3e}'
+                   ' Avg: {a:.3e}'
+                   ' It./s: {s:.3f}'.format(
+                e=self._epoch,
+                i=self._iterations,
+                l=loss,
+                a=self._total_loss / self._iterations,
+                s=len(self._durations) / sum(self._durations)
+            ), end='')
 
     def flush(self):
         print2()
