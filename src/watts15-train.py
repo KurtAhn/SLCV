@@ -84,7 +84,7 @@ if __name__ == '__main__':
                     t_report.report(loss)
                 except tf.errors.OutOfRangeError:
                     break
-            t_report.flush()
+            print2()
 
             v_report = util.Report(epoch, mode='d')
             v_example = v_set.make_one_shot_iterator().get_next()
@@ -94,7 +94,7 @@ if __name__ == '__main__':
                     v_report.report(loss)
                 except tf.errors.OutOfRangeError:
                     break
-            v_report.flush()
+            print2()
 
             with open(log_path, 'a') as f:
                 f.write("{},{:.3e},{:.3e}\n"\

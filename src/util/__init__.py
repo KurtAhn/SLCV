@@ -33,9 +33,6 @@ class Report:
                 s=len(self._durations) / sum(self._durations)
             ), end='')
 
-    def flush(self):
-        print2()
-
     @property
     def avg_loss(self):
         return self._total_loss / self._iterations
