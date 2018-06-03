@@ -15,7 +15,7 @@ if __name__ == '__main__':
     p.add_argument('-c', '--config', dest='config', required=True)
     a = p.parse_args()
 
-    load_config(c.config)
+    load_config(a.config)
 
     import acoustic as ax
     import dataset as ds
