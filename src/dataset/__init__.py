@@ -1,9 +1,9 @@
 from __init__ import *
 import tensorflow as tf
 try:
-    from tf.data import TFRecordDataset
+    from tensorflow.data import TFRecordDataset
 except AttributeError:
-    from tf.contrib.data import TFRecordDataset
+    from tensorflow.contrib.data import TFRecordDataset
 import acoustic as ax
 import struct
 import numpy as np
