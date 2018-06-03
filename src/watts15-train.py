@@ -1,14 +1,9 @@
 #!/usr/bin/env python
 from __init__ import *
-import acoustic as ax
-import dataset as ds
-from watts15 import *
-from watts15.dnn import *
 from os import path, mkdir
-from argparse import ArgumentParser
-import util
 import numpy as np
 from random import shuffle
+from argparse import ArgumentParser
 
 
 if __name__ == '__main__':
@@ -21,6 +16,12 @@ if __name__ == '__main__':
     a = p.parse_args()
 
     load_config(c.config)
+
+    import acoustic as ax
+    import dataset as ds
+    from watts15 import *
+    from watts15.dnn import *
+    import util
 
     try:
         mkdir(path.join(MDLDIR, a.model))
