@@ -65,8 +65,7 @@ if __name__ == '__main__':
         print2('Model created')
 
         t_set = ds.load_trainset(t_rec)\
-            .shuffle(buffer_size=100000,
-                     reshuffle_each_iteration=False)\
+            .shuffle(buffer_size=100000)\
             .batch(a.nbatch)
 
         v_set = ds.load_trainset(v_rec).batch(a.nbatch)
