@@ -17,7 +17,10 @@ if __name__ == '__main__':
     p.add_argument('-e', '--epoch', dest='epoch', type=int, default=0)
     p.add_argument('-s', '--senlst', dest='senlst', required=True)
     p.add_argument('-b', '--nbatch', dest='nbatch', type=int, default=256)
+    p.add_argument('-c', '--config', dest='config', required=True)
     a = p.parse_args()
+
+    load_config(c.config)
 
     try:
         mkdir(path.join(MDLDIR, a.model))

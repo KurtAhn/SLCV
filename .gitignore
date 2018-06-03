@@ -1,5 +1,5 @@
 *.pyc
 data/
-config/
-./config.json
+/config/
+/config.json
 setup.sh
