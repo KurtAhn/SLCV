@@ -1,5 +1,9 @@
 from __init__ import *
 import tensorflow as tf
+try:
+    from tf.data import TFRecordDataset
+except AttributeError:
+    from tf.contrib.data import TFRecordDataset
 import acoustic as ax
 import struct
 import numpy as np
@@ -10,17 +14,17 @@ LX_DIM = cfg_data.get('linguistic-dim', 609)
 WORD = cfg_data.get('word-position-index', 582)
 
 
-def count_examples(filepaths):
-    n = 0
-    for f in filepaths:
-        for r in tf.python_io.tf_record_iterator(f):
-            n += 1
-    return n
+# def count_examples(filepaths):
+#     n = 0
+#     for f in filepaths:
+#         for r in tf.python_io.tf_record_iterator(f):
+#             n += 1
+#     return n
 
 
 def load_trainset(filepaths, unit='s'):
     st2d = tf.sparse_tensor_to_dense
-    return tf.data.TFRecordDataset(filepaths)\
+    return TFRecordDataset(filepaths)\
         .map(
             lambda record: \
                 tf.parse_single_example(
@@ -39,7 +43,7 @@ def load_trainset(filepaths, unit='s'):
 
 def load_synthset(filepaths):
     st2d = tf.sparse_tensor_to_dense
-    return tf.data.TFRecordDataset(filepaths)\
+    return TFRecordDataset(filepaths)\
         .map(
             lambda record: \
                 tf.parse_single_example(
