@@ -16,7 +16,6 @@ if __name__ == '__main__':
     p.add_argument('-m', '--model', dest='model', required=True)
     p.add_argument('-e', '--epoch', dest='epoch', type=int, default=0)
     p.add_argument('-s', '--senlst', dest='senlst', required=True)
-    p.add_argument('-n', '--ndataset', dest='ndataset', type=int, default=None)
     p.add_argument('-b', '--nbatch', dest='nbatch', type=int, default=256)
     a = p.parse_args()
 
@@ -64,11 +63,6 @@ if __name__ == '__main__':
         saver = tf.train.Saver(max_to_keep=0)
 
         print2('Model created')
-
-        # n = a.ndataset or ds.count_examples(records)
-        # nt = int(n * 0.95)
-
-        print2('Example count', n)
 
         t_set = ds.load_trainset(t_rec)\
             .shuffle(buffer_size=100000,
