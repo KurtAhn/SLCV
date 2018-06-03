@@ -2,7 +2,7 @@ from __init__ import *
 import tensorflow as tf
 try:
     from tensorflow.data import TFRecordDataset
-except AttributeError:
+except ModuleNotFoundError:
     from tensorflow.contrib.data import TFRecordDataset
 import acoustic as ax
 import struct
