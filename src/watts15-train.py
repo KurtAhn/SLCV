@@ -39,7 +39,10 @@ if __name__ == '__main__':
     records = [path.join(TRNDIR, s+'.tfr') for s in sentences]
     shuffle(records)
 
-    with tf.Session().as_default() as session:
+    session_config = tf.ConfigProto(allow_soft_placement=True,
+                                    log_device_placement=True)
+    session_config.gpu_options.allow_growth = True
+    with tf.Session(config=session_config).as_default() as session:
         if a.epoch == 0:
             model = SLCV1(sentences=sentences,
                           nl=NL,
