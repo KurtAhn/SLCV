@@ -36,8 +36,11 @@ if __name__ == '__main__':
 
     with open(a.senlst) as f:
         sentences = [l.rstrip() for l in f]
-    records = [path.join(TRNDIR, s+'.tfr') for s in sentences]
-    shuffle(records)
+
+    t_rec = [path.join(TRNDIR, s+'.tfr') for s in sentences]
+    shuffle(t_rec)
+
+    v_rec = [path.join(VALDIR, s+'.tfr') for s in sentences]
 
     session_config = tf.ConfigProto(allow_soft_placement=True,
                                     log_device_placement=True)
@@ -62,49 +65,47 @@ if __name__ == '__main__':
 
         print2('Model created')
 
-        n = a.ndataset or ds.count_examples(records)
-        nt = int(n * 0.95)
+        # n = a.ndataset or ds.count_examples(records)
+        # nt = int(n * 0.95)
 
         print2('Example count', n)
 
-        dataset = ds.load_trainset(records)\
+        t_set = ds.load_trainset(t_rec)\
             .shuffle(buffer_size=100000,
                      reshuffle_each_iteration=False)\
             .batch(a.nbatch)
 
+        v_set = ds.load_trainset(v_rec).batch(a.nbatch)
+
         print2('Dataset created')
 
         epoch = a.epoch+1
-        dev_loss = None
+        v_loss = None
         while True:
             print2('Training epoch', epoch)
-            trn_report = util.Report(epoch, mode='t')
-            example = dataset.make_one_shot_iterator().get_next()
-            count = 0
+            t_report = util.Report(epoch, mode='t')
+            t_example = t_set.make_one_shot_iterator().get_next()
             while True:
                 try:
-                    loss = model.train(*session.run(example))
-                    trn_report.report(loss)
-                    count += a.nbatch
-                    if count >= nt:
-                        break
+                    loss = model.train(*session.run(t_example))
+                    t_report.report(loss)
                 except tf.errors.OutOfRangeError:
                     break
-            trn_report.flush()
+            t_report.flush()
 
-            dev_report = util.Report(epoch, mode='d')
-            #dev_example = dev_data.make_one_shot_iterator().get_next()
+            v_report = util.Report(epoch, mode='d')
+            v_example = v_set.make_one_shot_iterator().get_next()
             while True:
                 try:
-                    loss, out = model.predict(*session.run(example))
-                    dev_report.report(loss)
+                    loss, out = model.predict(*session.run(v_example))
+                    v_report.report(v_loss)
                 except tf.errors.OutOfRangeError:
                     break
-            dev_report.flush()
+            v_report.flush()
 
             with open(log_path, 'a') as f:
                 f.write("{},{:.3e},{:.3e}\n"\
-                        .format(epoch, trn_report.avg_loss, dev_report.avg_loss))
+                        .format(epoch, t_report.avg_loss, v_report.avg_loss))
                 f.flush()
 
             if epoch == 1:
@@ -118,7 +119,7 @@ if __name__ == '__main__':
             epoch += 1
 
             if epoch > 15 and \
-               dev_loss is not None and \
-               dev_loss < dev_report.avg_loss:
+               v_loss is not None and \
+               v_loss < v_report.avg_loss:
                 break
-            dev_loss = dev_report.avg_loss
+            v_loss = v_report.avg_loss
