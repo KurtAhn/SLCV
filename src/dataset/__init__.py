@@ -1,11 +1,11 @@
 from __init__ import *
 import tensorflow as tf
 try:
-    from tensorflow.data import TFRecordDataset
+    TFRecordDataset = tf.data.TFRecordDataset
 except ModuleNotFoundError:
     from tensorflow.contrib.data import TFRecordDataset
 import acoustic as ax
-import struct
+# import struct
 import numpy as np
 
 

@@ -6,6 +6,14 @@ from random import shuffle
 from argparse import ArgumentParser
 
 
+# def memory():
+#     import os, psutil
+#     pid = os.getpid()
+#     py = psutil.Process(pid)
+#     use = py.memory_info()[0]/2.0**32
+#     print2('memory use: ', use)
+
+
 if __name__ == '__main__':
     p = ArgumentParser()
     p.add_argument('-m', '--model', dest='model', required=True)
@@ -46,7 +54,7 @@ if __name__ == '__main__':
     v_rec = [path.join(VALDIR, s+'.tfr') for s in sentences]
 
     session_config = tf.ConfigProto(allow_soft_placement=True,
-                                    log_device_placement=True)
+                                    log_device_placement=False)
     session_config.gpu_options.allow_growth = True
     with tf.Session(config=session_config).as_default() as session:
         if a.epoch == 0:
@@ -61,18 +69,22 @@ if __name__ == '__main__':
             session.run(tf.tables_initializer())
         else:
             model = SLCV1(mdldir=path.join(MDLDIR, a.model), epoch=a.epoch)
-            #session.run(tf.global_variables_initializer())
             session.run(tf.tables_initializer())
 
         saver = tf.train.Saver(max_to_keep=0)
 
         print2('Model created')
 
-        t_set = ds.load_trainset(t_rec)\
-            .shuffle(buffer_size=100000)\
-            .batch(a.nbatch)
+        t_data = ds.load_trainset(t_rec)\
+                 .shuffle(buffer_size=100000)\
+                 .batch(a.nbatch)\
+                 .make_initializable_iterator()
+        t_example = t_data.get_next()
 
-        v_set = ds.load_trainset(v_rec).batch(a.nbatch)
+        v_data = ds.load_trainset(v_rec)\
+                 .batch(a.nbatch)\
+                 .make_initializable_iterator()
+        v_example = v_data.get_next()
 
         print2('Dataset created')
 
@@ -81,7 +93,7 @@ if __name__ == '__main__':
         while True:
             print2('Training epoch', epoch)
             t_report = util.Report(epoch, mode='t')
-            t_example = t_set.make_one_shot_iterator().get_next()
+            session.run(t_data.initializer)
             while True:
                 try:
                     loss = model.train(*session.run(t_example))
@@ -91,7 +103,7 @@ if __name__ == '__main__':
             print2()
 
             v_report = util.Report(epoch, mode='d')
-            v_example = v_set.make_one_shot_iterator().get_next()
+            session.run(v_data.initializer)
             while True:
                 try:
                     loss, out = model.predict(*session.run(v_example))
