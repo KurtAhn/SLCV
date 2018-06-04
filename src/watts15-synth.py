@@ -53,7 +53,7 @@ if __name__ == '__main__':
         n2 = SLCV2(nl=NL, nc=NC, w=n1._w, b=n1._b)
 
         for s in sentences:
-            dataset = ds.load_trainset([path.join(SYNDIR, s+'.tfr')])
+            dataset = ds.load_trainset([path.join(TSTDIR, s+'.tfr')])
             example = dataset.make_one_shot_iterator().get_next()
             output = []
             while True:
