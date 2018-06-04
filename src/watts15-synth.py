@@ -19,7 +19,7 @@ if __name__ == '__main__':
     p.add_argument('-m', '--model', dest='model', required=True)
     p.add_argument('-e', '--epoch', dest='epoch', type=int, required=True)
     p.add_argument('-s', '--senlst', dest='senlst', required=True)
-    p.add_argument('-v', '--vector', dest='vector', type=float, nargs=NC, required=True)
+    p.add_argument('-v', '--vector', dest='vector', type=float, nargs='+', required=True)
     a = p.parse_args()
 
     load_config(a.config)
