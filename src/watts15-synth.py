@@ -4,7 +4,6 @@ import sys
 import os
 sys.path.append(os.environ['MAGPHASE'])
 import libutils as lu
-import acoustic as ax
 from subprocess import call
 from os import path
 from os import mkdir
@@ -25,6 +24,7 @@ if __name__ == '__main__':
 
     load_config(a.config)
 
+    import acoustic as ax
     import dataset as ds
     from watts15 import *
     from watts15.dnn import *
