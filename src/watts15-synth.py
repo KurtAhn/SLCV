@@ -5,25 +5,29 @@ import os
 sys.path.append(os.environ['MAGPHASE'])
 import libutils as lu
 import acoustic as ax
-import dataset as ds
-from watts15 import *
-import watts15.dnn as dnn
 from subprocess import call
 from os import path
 from os import mkdir
 import matplotlib.pyplot as pyplot
-from argparse import ArgumentParser
 import tensorflow as tf
 import numpy as np
+from argparse import ArgumentParser
 
 
 if __name__ == '__main__':
     p = ArgumentParser()
-    p.add_argument('-s', '--senlst', dest='senlst', required=True)
+    p.add_argument('-c', '--config', dest='config', required=True)
     p.add_argument('-m', '--model', dest='model', required=True)
     p.add_argument('-e', '--epoch', dest='epoch', type=int, required=True)
-    p.add_argument('-c', '--control', dest='control', type=float, nargs=NC, required=True)
+    p.add_argument('-s', '--senlst', dest='senlst', required=True)
+    p.add_argument('-v', '--vector', dest='vector', type=float, nargs=NC, required=True)
     a = p.parse_args()
+
+    load_config(a.config)
+
+    import dataset as ds
+    from watts15 import *
+    from watts15.dnn import *
 
     with open(a.senlst) as f:
         sentences = [l.rstrip() for l in f]
@@ -34,7 +38,7 @@ if __name__ == '__main__':
     outdir = SYNDIR
     for level in [a.model,
                   str(a.epoch),
-                  ','.join(['{:.3f}'.format(e) for e in a.control])]:
+                  ','.join(['{:.3f}'.format(e) for e in a.vector])]:
         outdir = path.join(outdir, level)
         try:
             mkdir(outdir)
@@ -42,8 +46,8 @@ if __name__ == '__main__':
             pass
 
     with tf.Session().as_default() as session:
-        n1 = dnn.SLCV1(mdldir=path.join(MDLDIR, a.model), epoch=a.epoch)
-        n2 = dnn.SLCV2(nl=NL, nc=NC, w=n1._w, b=n1._b)
+        n1 = SLCV1(mdldir=path.join(MDLDIR, a.model), epoch=a.epoch)
+        n2 = SLCV2(nl=NL, nc=NC, w=n1._w, b=n1._b)
 
         for s in sentences:
             dataset = ds.load_trainset([path.join(SYNDIR, s+'.tfr')])
@@ -52,7 +56,7 @@ if __name__ == '__main__':
             while True:
                 try:
                     output.append(n2.predict(session.run(example)[0],
-                                             np.array(a.control)))
+                                             np.array(a.vector)))
                 except tf.errors.OutOfRangeError:
                     break
             x = np.concatenate(output)

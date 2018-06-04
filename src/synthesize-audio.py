@@ -31,4 +31,4 @@ if __name__ == '__main__':
     lf0 = lu.read_binfile(path.join(a.vocdir, a.sentence+'.lf0'), dim=1)
     v_syn_sig = mp.synthesis_from_compressed(mag, real, imag, lf0, 48000, b_const_rate=False, b_out_hpf=False)
     la.write_audio_file(path.join(a.outdir,a.sentence+'.wav'), v_syn_sig, 48000)
-    print 'Wrote audio'
+    # print 'Wrote audio'

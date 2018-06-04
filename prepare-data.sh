@@ -2,7 +2,7 @@
 
 PRJDIR=`dirname $0`
 SRCDIR=$PRJDIR/src
-DATDIR=$PRJDIR/data/test
+DATDIR=$PRJDIR/data
 CFG=$PRJDIR/config/test-config.json
 
 source $PRJDIR/setup.sh
