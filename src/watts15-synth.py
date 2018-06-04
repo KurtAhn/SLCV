@@ -20,6 +20,7 @@ if __name__ == '__main__':
     p.add_argument('-e', '--epoch', dest='epoch', type=int, required=True)
     p.add_argument('-s', '--senlst', dest='senlst', required=True)
     p.add_argument('-v', '--vector', dest='vector', type=float, nargs='+', required=True)
+    p.add_argument('-p', '--plot-f0', dest='plot_f0', action='store_true')
     a = p.parse_args()
 
     load_config(a.config)
@@ -70,18 +71,19 @@ if __name__ == '__main__':
             v = x[:,-1]
             x = ax.window(x[:,:ax.AX_DIM], np.ones([w]) / float(w))
             x[:,ax.LF0][v <= mean[-1]] = 0.0
-            print2(min(x[:,ax.LF0][x[:,ax.LF0] > 0.0]))
+            #print2(min(x[:,ax.LF0][x[:,ax.LF0] > 0.0]))
             x[:,ax.LF0] = np.log(x[:,ax.LF0])
 
-            x2 = lu.read_binfile(path.join(ACO3DIR, s+'.aco'), dim=ds.AX_DIM)
-            x2 = ax.window(x2[:,:ax.AX_DIM], np.ones([w]) / float(w))
+            if a.plot_f0:
+                x2 = lu.read_binfile(path.join(ACO3DIR, s+'.aco'), dim=ds.AX_DIM)
+                x2 = ax.window(x2[:,:ax.AX_DIM], np.ones([w]) / float(w))
 
-            t = [n * 0.005 for n in range(x.shape[0])]
+                t = [n * 0.005 for n in range(x.shape[0])]
 
-            pyplot.plot(t, [np.exp(y) if y > 0 else 1e-10 for y in x[:,ax.LF0]])
-            pyplot.plot(t, [y if y > 0 else 1e-10 for y in x2[:len(t),ax.LF0]])
-            pyplot.savefig(path.join(outdir, s+'_f0.pdf'))
-            pyplot.close()
+                pyplot.plot(t, [np.exp(y) if y > 0 else 1e-10 for y in x[:,ax.LF0]])
+                pyplot.plot(t, [y if y > 0 else 1e-10 for y in x2[:len(t),ax.LF0]])
+                pyplot.savefig(path.join(outdir, s+'_f0.pdf'))
+                pyplot.close()
 
             lu.write_binfile(x[:,ax.MAG], path.join(outdir, s+'.mag'))
             lu.write_binfile(x[:,ax.REAL], path.join(outdir, s+'.real'))
