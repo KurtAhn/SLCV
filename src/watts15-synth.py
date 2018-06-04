@@ -45,7 +45,10 @@ if __name__ == '__main__':
         except FileExistsError:
             pass
 
-    with tf.Session().as_default() as session:
+    session_config = tf.ConfigProto(allow_soft_placement=True,
+                                    log_device_placement=False)
+    session_config.gpu_options.allow_growth = True
+    with tf.Session(config=session_config).as_default() as session:
         n1 = SLCV1(mdldir=path.join(MDLDIR, a.model), epoch=a.epoch)
         n2 = SLCV2(nl=NL, nc=NC, w=n1._w, b=n1._b)
 
