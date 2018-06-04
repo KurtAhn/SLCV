@@ -1,6 +1,6 @@
 #!/usr/bin/python2
-import sys
-sys.path.append('/home/kurt/Documents/etc/magphase/src')
+import sys, os
+sys.path.append(os.environ['MAGPHASE'])
 import magphase as mp
 import libaudio as la
 import libutils as lu

@@ -52,7 +52,7 @@ def load_config(filepath):
              .replace('$', PRJDIR)
     TSTDIR = cfg_dir.get('testing', path.join(DATDIR, 'training'))\
              .replace('$', PRJDIR)
-    SYNDIR = cfg_dir.get('synthesized', path.join(DATDIR, 'synthesized'))\
+    SYNDIR = cfg_dir.get('synthesis', path.join(DATDIR, 'synthesis'))\
              .replace('$', PRJDIR)
 
     STDOUT = cfg_log.get('redirect-stdout', '&1')
