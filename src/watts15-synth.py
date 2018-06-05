@@ -52,9 +52,11 @@ if __name__ == '__main__':
     with tf.Session(config=session_config).as_default() as session:
         n1 = SLCV1(mdldir=path.join(MDLDIR, a.model), epoch=a.epoch)
         print2('Model 1 loaded')
+        flush2()
 
         n2 = SLCV2(nl=NL, nc=NC, w=n1._w, b=n1._b)
         print2('Model 2 loaded')
+        flush2()
 
         for s in sentences:
             dataset = ds.load_trainset([path.join(TSTDIR, s+'.tfr')])\
