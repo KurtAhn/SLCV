@@ -57,12 +57,14 @@ if __name__ == '__main__':
         print2('Model 2 loaded')
 
         for s in sentences:
-            dataset = ds.load_trainset([path.join(TSTDIR, s+'.tfr')])
-            example = dataset.make_one_shot_iterator().get_next()
+            dataset = ds.load_trainset([path.join(TSTDIR, s+'.tfr')])\
+                      .make_initializable_iterator()
+            example = dataset.get_next()
             print2('Example created')
 
             output = []
             while True:
+                session.run(dataset.initializer)
                 try:
                     output.append(n2.predict(session.run(example)[0],
                                              np.array(a.vector)))

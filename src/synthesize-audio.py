@@ -11,7 +11,6 @@ from argparse import ArgumentParser
 if __name__ == '__main__':
     p = ArgumentParser()
     p.add_argument('-s', '--sentence', dest='sentence', required=True)
-    p.add_argument('-v', '--vocdir', dest='vocdir', required=True)
     p.add_argument('-o', '--outdir', dest='outdir', required=True)
     p.add_argument('-m', '--magdim', dest='magdim', type=int, required=True)
     p.add_argument('-p', '--phadim', dest='phadim', type=int, required=True)
