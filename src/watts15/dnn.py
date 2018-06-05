@@ -131,20 +131,20 @@ class SLCV2:
                 raise ValueError('Missing argument: {}'.format(p))
         nc, nl, w, b = tuple(map(lambda k: kwargs[k], params))
 
-        with tf.device(DEVICE):
-            with tf.name_scope('slcv2'):
-                self._l = l = tf.placeholder('float', [None, nl], name='l')
-                self._c = c = tf.placeholder('float', [None, nc], name='c')
-                self._w = [tf.identity(wi, name='w{}'.format(i))
-                           for i, wi in enumerate(w)]
-                self._b = [tf.identity(bi, name='b{}'.format(i))
-                           for i, bi in enumerate(b)]
-                h = tf.concat([l, c], axis=1)
-                for wi, bi in zip(w[:-1], b[:-1]):
-                    h = tf.nn.tanh(tf.matmul(h, wi) + bi)
-                a = tf.matmul(h, w[-1])
-                self._a = a = tf.add(a, b[-1], name='a')
-                tf.add_to_collection('a', self._a)
+        #with tf.device(DEVICE):
+        with tf.name_scope('slcv2'):
+            self._l = l = tf.placeholder('float', [None, nl], name='l')
+            self._c = c = tf.placeholder('float', [None, nc], name='c')
+            self._w = [tf.identity(wi, name='w{}'.format(i))
+                       for i, wi in enumerate(w)]
+            self._b = [tf.identity(bi, name='b{}'.format(i))
+                       for i, bi in enumerate(b)]
+            h = tf.concat([l, c], axis=1)
+            for wi, bi in zip(w[:-1], b[:-1]):
+                h = tf.nn.tanh(tf.matmul(h, wi) + bi)
+            a = tf.matmul(h, w[-1])
+            self._a = a = tf.add(a, b[-1], name='a')
+            tf.add_to_collection('a', self._a)
 
     def _restore(self, mdldir):
         g = tf.get_default_graph()
