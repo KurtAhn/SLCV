@@ -63,6 +63,7 @@ if __name__ == '__main__':
                       .make_initializable_iterator()
             example = dataset.get_next()
             print2('Example created')
+            flush2()
 
             output = []
             while True:
