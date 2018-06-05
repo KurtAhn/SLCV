@@ -135,11 +135,9 @@ class SLCV2:
             with tf.name_scope('slcv2'):
                 self._l = l = tf.placeholder('float', [None, nl], name='l')
                 self._c = c = tf.placeholder('float', [None, nc], name='c')
-                self._w = [tf.identity(tf.Variable(np.zeros(wi.shape, dtype='float32')),
-                                       wi, name='w{}'.format(i))
+                self._w = [tf.identity(wi, name='w{}'.format(i))
                            for i, wi in enumerate(w)]
-                self._b = [tf.identity(tf.Variable(np.zeros(bi.shape, dtype='float32')),
-                                       bi, name='b{}'.format(i))
+                self._b = [tf.identity(bi, name='b{}'.format(i))
                            for i, bi in enumerate(b)]
                 h = tf.concat([l, c], axis=1)
                 for wi, bi in zip(w[:-1], b[:-1]):
