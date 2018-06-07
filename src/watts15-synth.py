@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from __init__ import *
+from __init__ import load_config
 import sys
 import os
 sys.path.append(os.environ['MAGPHASE'])
@@ -24,7 +24,7 @@ if __name__ == '__main__':
     a = p.parse_args()
 
     load_config(a.config)
-
+    from __init__ import *
     import acoustic as ax
     import dataset as ds
     from watts15 import *
@@ -54,6 +54,8 @@ if __name__ == '__main__':
         print2('Model 1 loaded')
         flush2()
 
+        print2(len(n1._w))
+        flush2()
         n2 = SLCV2(nl=NL, nc=NC, w=n1._w, b=n1._b)
         print2('Model 2 loaded')
         flush2()
@@ -65,9 +67,9 @@ if __name__ == '__main__':
             print2('Example created')
             flush2()
 
+            session.run(dataset.initializer)
             output = []
             while True:
-                session.run(dataset.initializer)
                 try:
                     output.append(n2.predict(session.run(example)[0],
                                              np.array(a.vector)))
@@ -80,6 +82,10 @@ if __name__ == '__main__':
 
             v = x[:,-1]
             x = ax.window(x[:,:ax.AX_DIM], np.ones([w]) / float(w))
+            if a.plot_f0:
+                t = [n * 0.005 for n in range(x.shape[0])]
+                pyplot.plot(t, x[:,ax.LF0])
+
             x[:,ax.LF0][v <= mean[-1]] = 0.0
             #print2(min(x[:,ax.LF0][x[:,ax.LF0] > 0.0]))
             x[:,ax.LF0] = np.log(x[:,ax.LF0])
@@ -87,10 +93,7 @@ if __name__ == '__main__':
             if a.plot_f0:
                 x2 = lu.read_binfile(path.join(ACO3DIR, s+'.aco'), dim=ds.AX_DIM)
                 x2 = ax.window(x2[:,:ax.AX_DIM], np.ones([w]) / float(w))
-
-                t = [n * 0.005 for n in range(x.shape[0])]
-
-                pyplot.plot(t, [np.exp(y) if y > 0 else 1e-10 for y in x[:,ax.LF0]])
+                #pyplot.plot(t, [np.exp(y) if y > 0 else 1e-10 for y in x[:,ax.LF0]])
                 pyplot.plot(t, [y if y > 0 else 1e-10 for y in x2[:len(t),ax.LF0]])
                 pyplot.savefig(path.join(outdir, s+'_f0.pdf'))
                 pyplot.close()
@@ -101,15 +104,13 @@ if __name__ == '__main__':
             lu.write_binfile(x[:,ax.LF0], path.join(outdir, s+'.lf0'))
 
             try:
-                call('{script} -s {sentence} '
-                     '-v {vocdir} -o {outdir} '
-                     '-m {magdim} -p {phadim}'.format(
-                    script=path.join(SRCDIR, 'synthesize-audio.py'),
-                    sentence=s,
-                    vocdir=outdir,
-                    outdir=outdir,
-                    magdim=ax.MAG_DIM,
-                    phadim=ax.PHASE_DIM).split())
+                call('{script} -s {sentence} -o {outdir} -m {magdim} -p {phadim}'\
+                    .format(script=path.join(SRCDIR, 'synthesize-audio.py'),
+                            sentence=s,
+                            #vocdir=outdir,
+                            outdir=outdir,
+                            magdim=ax.MAG_DIM,
+                            phadim=ax.PHASE_DIM).split())
             except Exception as e:
                 print2(e)
                 print2('Error synthesizing', s)

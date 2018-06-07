@@ -60,8 +60,8 @@ class SLCV1:
 
     def _restore(self, mdldir, epoch):
         g = tf.get_default_graph()
-        meta = tf.train.import_meta_graph(path.join(mdldir, '_.meta'),
-                                          clear_devices=True)
+        meta = tf.train.import_meta_graph(path.join(mdldir, '_.meta')) #,
+                                         # clear_devices=True)
         if epoch:
             with open(path.join(mdldir, 'checkpoint'), 'w') as f:
                 f.write('model_checkpoint_path: "' +

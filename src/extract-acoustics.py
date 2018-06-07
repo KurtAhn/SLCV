@@ -6,7 +6,7 @@ Main differences:
     - Use senlst instead of converting all audio files in directory
     - Print successfully converted sentences
 """
-from __init__ import *
+from __init__ import load_config
 import sys, os
 sys.path.append(os.environ['MAGPHASE'])
 import magphase as mp
@@ -38,8 +38,12 @@ def extract(sentence, wavdir, outdir):
 if __name__ == '__main__':
     p = ArgumentParser()
     p.add_argument('-s', '--senlst', dest='senlst', required=True)
+    p.add_argument('-c', '--config', dest='config', required=True)
     p.add_argument('-d', '--debug', dest='debug', action='store_true')
     a = p.parse_args()
+
+    load_config(a.config)
+    from __init__ import *
 
     with open(a.senlst) as f:
         sentences = [l.rstrip() for l in f]

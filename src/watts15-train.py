@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-from __init__ import *
+from __init__ import load_config
 from os import path, mkdir
+import shutil
 import numpy as np
 from random import shuffle
 from argparse import ArgumentParser
@@ -24,19 +25,21 @@ if __name__ == '__main__':
     a = p.parse_args()
 
     load_config(a.config)
-
+    from __init__ import *
     import acoustic as ax
     import dataset as ds
     from watts15 import *
     from watts15.dnn import *
     import util
 
+    mdldir = path.join(MDLDIR, a.model)
     try:
-        mkdir(path.join(MDLDIR, a.model))
+        mkdir(mdldir)
     except FileExistsError:
         pass
+    shutil.copy2(a.config, mdldir)
 
-    log_path = path.join(MDLDIR, a.model, 'log.txt')
+    log_path = path.join(mdldir, 'log.txt')
     with open(log_path, 'a') as f:
         f.write('----MODEL CONFIGURATION----\n')
         f.write('Control: {}\n'.format(NC))
@@ -68,7 +71,7 @@ if __name__ == '__main__':
             session.run(tf.global_variables_initializer())
             session.run(tf.tables_initializer())
         else:
-            model = SLCV1(mdldir=path.join(MDLDIR, a.model), epoch=a.epoch)
+            model = SLCV1(mdldir=mdldir, epoch=a.epoch)
             session.run(tf.tables_initializer())
 
         saver = tf.train.Saver(max_to_keep=0)
@@ -119,10 +122,10 @@ if __name__ == '__main__':
 
             if epoch == 1:
                 tf.train.export_meta_graph(
-                    filename=path.join(MDLDIR, a.model, '_.meta')
+                    filename=path.join(mdldir, '_.meta')
                 )
             saver.save(session,
-                       path.join(MDLDIR, a.model, '_'),
+                       path.join(mdldir, '_'),
                        global_step=epoch,
                        write_meta_graph=False)
             epoch += 1

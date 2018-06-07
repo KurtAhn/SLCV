@@ -1,5 +1,5 @@
-#!/usr/bin/python3
-from __init__ import *
+#!/usr/bin/env python
+from __init__ import load_config
 import sys, os
 sys.path.append(os.environ['MERLIN'])
 from frontend.label_normalisation import HTSLabelNormalisation
@@ -12,7 +12,11 @@ from argparse import ArgumentParser
 if __name__ == '__main__':
     p = ArgumentParser()
     p.add_argument('-s', '--senlst', dest='senlst', required=True)
+    p.add_argument('-c', '--config', dest='config', required=True)
     a = p.parse_args()
+
+    load_config(a.config)
+    from __init__ import *
 
     with open(a.senlst) as f:
         sentences = [l.rstrip() for l in f if l]
