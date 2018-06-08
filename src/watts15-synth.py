@@ -78,8 +78,9 @@ if __name__ == '__main__':
             x = np.concatenate(output)
 
             # Variance scaling
-            u_x, s_x = np.mean(x[:,:ax.AX_DIM], axis=0), np.std(x[:,:ax.AX_DIM], axis=0)
-            x[:,:ax.AX_DIM] = np.add(np.divide(np.subtract(x[:,:ax.AX_DIM], u_x), s_x), u_x)
+            no_f0 = slice(0,ax.AX_DIM-1)
+            u_x, s_x = np.mean(x[:,no_f0], axis=0), np.std(x[:,no_f0], axis=0)
+            x[:,no_f0] = np.add(np.divide(np.subtract(x[:,no_f0], u_x), s_x), u_x)
 
             x = ax.destandardize(x, mean, stddev)
 
