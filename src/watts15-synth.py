@@ -80,8 +80,8 @@ if __name__ == '__main__':
             v = x[:,-1]
             x = x[:,:ax.AX_DIM-ax.LF0_DIM]
 
-            wl = 7
-            x = ax.window(x, np.ones([wl], dtype=float) / float(wl))
+            # wl = 1
+            # x = ax.window(x, np.ones([wl], dtype=float) / float(wl))
 
             u = np.mean(x, axis=0)
             si = np.reciprocal(np.std(x, axis=0))
