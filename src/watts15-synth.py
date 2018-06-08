@@ -78,15 +78,15 @@ if __name__ == '__main__':
             x = np.concatenate(output)
 
             # Variance scaling
-            u_x, s_x = np.mean(x[:,ax.AX_DIM], axis=0), np.std(x[:,ax.AX_DIM], axis=0)
-            x[:,ax.AX_DIM] = np.add(np.divide(np.subtract(x[:,ax.AX_DIM], u_x), s_x), u_x)
+            u_x, s_x = np.mean(x[:,:ax.AX_DIM], axis=0), np.std(x[:,:ax.AX_DIM], axis=0)
+            x[:,:ax.AX_DIM] = np.add(np.divide(np.subtract(x[:,:ax.AX_DIM], u_x), s_x), u_x)
 
             x = ax.destandardize(x, mean, stddev)
 
-            w = 1
+            #w = 1
 
             v = x[:,-1]
-            x = ax.window(x[:,:ax.AX_DIM], np.ones([w]) / float(w))
+            #x = ax.window(x[:,:ax.AX_DIM], np.ones([w]) / float(w))
             if a.plot_f0:
                 t = [n * 0.005 for n in range(x.shape[0])]
                 pyplot.plot(t, x[:,ax.LF0])
@@ -97,7 +97,7 @@ if __name__ == '__main__':
 
             if a.plot_f0:
                 x2 = lu.read_binfile(path.join(ACO3DIR, s+'.aco'), dim=ds.AX_DIM)
-                x2 = ax.window(x2[:,:ax.AX_DIM], np.ones([w]) / float(w))
+                #x2 = ax.window(x2[:,:ax.AX_DIM], np.ones([w]) / float(w))
                 #pyplot.plot(t, [np.exp(y) if y > 0 else 1e-10 for y in x[:,ax.LF0]])
                 pyplot.plot(t, [y if y > 0 else 1e-10 for y in x2[:len(t),ax.LF0]])
                 pyplot.savefig(path.join(outdir, s+'_f0.pdf'))

@@ -49,36 +49,6 @@ def velocity(a):
 def acceleration(a):
     return window(a, np.array([1.0, -2.0, 1.0]))
 
-
-# def interpolate_f0(a):
-#     '''
-#     From Merlin somewhere... Probably not needed.
-#     '''
-#     f = a[:,LF0]
-#     a_ = np.copy(a)
-#     f_ = a_[:,LF0]
-#     last = 0.0
-#     for i in range(f.size):
-#         if f[i] <= 0.0:
-#             j = i+1
-#             for j in range(i+1, f.size):
-#                 if f[j] > 0.0:
-#                     break
-#             if j < f.size-1:
-#                 if last > 0.0:
-#                     step = (f[j] - f[i-1]) / float(j-i)
-#                     for k in range(i, j):
-#                         f_[k] = f[i-1] + step * (k-i+1)
-#                 else:
-#                     for k in range(i, j):
-#                         f_[k] = f[j]
-#             else:
-#                 for k in range(i, f.size):
-#                     f_[k] = last
-#         else:
-#             f_[i] = last = f[i]
-#     return a_
-
 def interpolate_f0(a, kind='linear'):
     a = np.copy(a)
     vi = np.where(a[:,LF0] > 0.0)[0]
