@@ -76,36 +76,31 @@ if __name__ == '__main__':
                 except tf.errors.OutOfRangeError:
                     break
             x = np.concatenate(output)
-
-            # Variance scaling
-            no_f0 = slice(0,ax.AX_DIM-1)
-            u_x, s_x = np.mean(x[:,no_f0], axis=0), np.std(x[:,no_f0], axis=0)
-            x[:,no_f0] = np.add(np.divide(np.subtract(x[:,no_f0], u_x), s_x), u_x)
-
-            x = ax.destandardize(x, mean, stddev)
-
-            #w = 1
-
+            f = x[:,ax.LF0]
             v = x[:,-1]
-            #x = ax.window(x[:,:ax.AX_DIM], np.ones([w]) / float(w))
+            x = x[:,:ax.AX_DIM-ax.LF0_DIM]
+
+            wl = 7
+            x = ax.window(x, np.ones([wl], dtype=float) / float(wl))
+
+            u = np.mean(x, axis=0)
+            si = np.reciprocal(np.std(x, axis=0))
+            x = np.add(np.multiply(np.subtract(x, u), si), u)
+            x = ax.destandardize(np.concatenate([x, f], axis=1),
+                                 mean[:ax.AX_DIM], stddev[:ax.AX_DIM])
+
             if a.plot_f0:
                 t = [n * 0.005 for n in range(x.shape[0])]
                 pyplot.plot(t, x[:,ax.LF0])
 
-            x[:,ax.LF0][v <= mean[-1]] = 0.0
-            #print2(min(x[:,ax.LF0][x[:,ax.LF0] > 0.0]))
+            x[:,ax.LF0][v <= 0.0] = 0.0
             x[:,ax.LF0] = np.log(x[:,ax.LF0])
 
             if a.plot_f0:
                 x2 = lu.read_binfile(path.join(ACO3DIR, s+'.aco'), dim=ds.AX_DIM)
-                #x2 = ax.window(x2[:,:ax.AX_DIM], np.ones([w]) / float(w))
-                #pyplot.plot(t, [np.exp(y) if y > 0 else 1e-10 for y in x[:,ax.LF0]])
-                pyplot.plot(t, [y if y > 0 else 1e-10 for y in x2[:len(t),ax.LF0]])
+                pyplot.plot(t, [y if y > 0 else 0.0 for y in x2[:len(t),ax.LF0]])
                 pyplot.savefig(path.join(outdir, s+'_f0.pdf'))
                 pyplot.close()
-
-
-
 
             lu.write_binfile(x[:,ax.MAG], path.join(outdir, s+'.mag'))
             lu.write_binfile(x[:,ax.REAL], path.join(outdir, s+'.real'))
