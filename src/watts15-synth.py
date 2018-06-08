@@ -76,6 +76,12 @@ if __name__ == '__main__':
                 except tf.errors.OutOfRangeError:
                     break
             x = np.concatenate(output)
+
+            # Variance scaling
+            u_x, s_x = np.mean(x, axis=0), np.std(x, axis=0)
+            # print2(u_x[ax.LF0], s_x[ax.LF0])
+            x = np.add(np.divide(np.subtract(x, u_x), s_x), u_x)
+
             x = ax.destandardize(x, mean, stddev)
 
             w = 1
@@ -97,6 +103,9 @@ if __name__ == '__main__':
                 pyplot.plot(t, [y if y > 0 else 1e-10 for y in x2[:len(t),ax.LF0]])
                 pyplot.savefig(path.join(outdir, s+'_f0.pdf'))
                 pyplot.close()
+
+
+
 
             lu.write_binfile(x[:,ax.MAG], path.join(outdir, s+'.mag'))
             lu.write_binfile(x[:,ax.REAL], path.join(outdir, s+'.real'))
