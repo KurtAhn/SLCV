@@ -16,18 +16,19 @@ if __name__ == '__main__':
     p.add_argument('-p', '--phadim', dest='phadim', type=int, required=True)
     a = p.parse_args()
 
-    # mp.synthesis_from_acoustic_modelling(a.outdir,
-    #                                      a.sentence,
-    #                                      a.outdir,
-    #                                      a.magdim,
-    #                                      a.phadim,
-    #                                      48000,
-    #                                      b_const_rate=False)
+    mp.synthesis_from_acoustic_modelling(a.outdir,
+                                         a.sentence,
+                                         a.outdir,
+                                         a.magdim,
+                                         a.phadim,
+                                         48000,
+                                         pf_type='merlin',
+                                         b_const_rate=False)
 
-    mag = lu.read_binfile(path.join(a.outdir, a.sentence+'.mag'), dim=a.magdim)
-    real = lu.read_binfile(path.join(a.outdir, a.sentence+'.real'), dim=a.phadim)
-    imag = lu.read_binfile(path.join(a.outdir, a.sentence+'.imag'), dim=a.phadim)
-    lf0 = lu.read_binfile(path.join(a.outdir, a.sentence+'.lf0'), dim=1)
-    v_syn_sig = mp.synthesis_from_compressed(mag, real, imag, lf0, 48000, b_const_rate=False, b_out_hpf=False)
-    la.write_audio_file(path.join(a.outdir,a.sentence+'.wav'), v_syn_sig, 48000)
+    # mag = lu.read_binfile(path.join(a.outdir, a.sentence+'.mag'), dim=a.magdim)
+    # real = lu.read_binfile(path.join(a.outdir, a.sentence+'.real'), dim=a.phadim)
+    # imag = lu.read_binfile(path.join(a.outdir, a.sentence+'.imag'), dim=a.phadim)
+    # lf0 = lu.read_binfile(path.join(a.outdir, a.sentence+'.lf0'), dim=1)
+    # v_syn_sig = mp.synthesis_from_compressed(mag, real, imag, lf0, 48000, b_const_rate=False, b_out_hpf=False)
+    # la.write_audio_file(path.join(a.outdir,a.sentence+'.wav'), v_syn_sig, 48000)
     # print 'Wrote audio'

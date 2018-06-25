@@ -12,7 +12,7 @@ from argparse import ArgumentParser
 if __name__ == '__main__':
     p = ArgumentParser()
     p.add_argument('-s', '--senlst', dest='senlst', required=True)
-    p.add_argument('-c'. '--config', dest='config', required=True)
+    p.add_argument('-c', '--config', dest='config', required=True)
     a = p.parse_args()
 
     load_config(a.config)

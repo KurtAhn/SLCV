@@ -3,23 +3,49 @@
 PRJDIR=`dirname $0`
 SRCDIR=$PRJDIR/src
 DATDIR=$PRJDIR/data
-CFG=$PRJDIR/config/interpolate.json
+WAVDIR=$DATDIR/wav
+CFG=$PRJDIR/config/ahn18/16x3.json
+SCP=$DATDIR/train.scp
 
 source $PRJDIR/setup.sh
 source activate thesis
 
-# $SRCDIR/extract-acoustics.py -s $DATDIR/extract-acoustics.scp -c $CFG > \
-#     $DATDIR/realign-states.scp || exit -1
-# $SRCDIR/realign-states.py -s $DATDIR/realign-states.scp -c $CFG > \
-#     $DATDIR/trim-acoustics.scp || exit -1
-#$SRCDIR/create-labels.py -s $DATDIR/trim-acoustics.scp -c $CFG || exit -1
-#$SRCDIR/trim-acoustics.py -s $DATDIR/trim-acoustics.scp -c $CFG || exit -1
-$SRCDIR/delta-acoustics.py -s $DATDIR/trim-acoustics.scp -c $CFG > \
-    $DATDIR/i-validate-transcripts.scp || exit -1
-$SRCDIR/validate-transcripts.py -s $DATDIR/validate-transcripts.scp -c $CFG > \
-    $DATDIR/i-create-pairset.scp || exit -1
-$SRCDIR/compute-stats.py -s $DATDIR/i-create-pairset.scp -c $CFG || exit -1
-$SRCDIR/create-pairset.py -s $DATDIR/i-create-pairset.scp -c $CFG > \
-    $DATDIR/i-train.scp || exit -1
+echo -n "" > $SCP
+for f in `ls $WAVDIR/*.wav`; do
+    basename $f | cut -d. -f1 >> $SCP
+done
+
+echo Extracting acoustics >&2
+$SRCDIR/extract-acoustics.py -s $SCP -c $CFG || exit -1
+
+echo Realigning states >&2
+$SRCDIR/realign-states.py -s $SCP -c $CFG || exit -1
+
+echo Creating labels >&2
+$SRCDIR/create-labels.py -s $SCP -c $CFG || exit -1
+
+echo Trimming silent frames >&2
+$SRCDIR/trim-acoustics.py -s $SCP -c $CFG || exit -1
+
+echo Applying delta >&2
+$SRCDIR/delta-acoustics.py -s $SCP -c $CFG || exit -1
+
+echo Creating embedding >&2
+$SRCDIR/create-embedding.py -c $CFG
+
+echo Tokenizing transcripts >&2
+$SRCDIR/tokenize-transcripts.sh $SCP || exit -1
+
+echo Wordifying transcripts >&2
+$SRCDIR/wordify-transcripts.sh $SCP || exit -1
+
+echo Validating transcripts >&2
+$SRCDIR/validate-transcripts.py -s $SCP || exit -1
+
+echo Computing statistics >&2
+$SRCDIR/compute-stats.py -s $SCP -c $CFG || exit -1
+
+echo Creating dataset >&2
+$SRCDIR/create-acoustic-train.py -s $SCP -c $CFG || exit -1
 
 source deactivate

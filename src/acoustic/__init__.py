@@ -4,8 +4,8 @@ import scipy.interpolate
 
 
 AX_DIM = 0
-MAG_DIM = cfg_data.get('magnitude-dim', 60)
-PHASE_DIM = cfg_data.get('phase-dim', 45)
+MAG_DIM = cfg_data.get('nm', 60)
+PHASE_DIM = cfg_data.get('np', 20)
 REAL_DIM = PHASE_DIM
 IMAG_DIM = PHASE_DIM
 LF0_DIM = 1

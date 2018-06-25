@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 from __init__ import load_config
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from os import path, mkdir
 import shutil
 import numpy as np
-from random import shuffle
+from random import Random
 from argparse import ArgumentParser
 
 
@@ -17,11 +19,13 @@ from argparse import ArgumentParser
 
 if __name__ == '__main__':
     p = ArgumentParser()
+    p.add_argument('-s', '--senlst', dest='senlst', required=True)
+    p.add_argument('-c', '--config', dest='config', required=True)
     p.add_argument('-m', '--model', dest='model', required=True)
     p.add_argument('-e', '--epoch', dest='epoch', type=int, default=0)
-    p.add_argument('-s', '--senlst', dest='senlst', required=True)
     p.add_argument('-b', '--nbatch', dest='nbatch', type=int, default=256)
-    p.add_argument('-c', '--config', dest='config', required=True)
+    p.add_argument('-n', '--ndata', dest='ndata', type=int, default=None)
+    p.add_argument('-x', '--split', dest='split', type=float, default=0.95)
     a = p.parse_args()
 
     load_config(a.config)
@@ -29,10 +33,9 @@ if __name__ == '__main__':
     import acoustic as ax
     import dataset as ds
     from watts15 import *
-    from watts15.dnn import *
     import util
 
-    mdldir = path.join(MDLDIR, a.model)
+    mdldir = path.join(MDLWDIR, a.model)
     try:
         mkdir(mdldir)
     except FileExistsError:
@@ -43,7 +46,7 @@ if __name__ == '__main__':
     with open(log_path, 'a') as f:
         f.write('----MODEL CONFIGURATION----\n')
         f.write('Control: {}\n'.format(NC))
-        f.write('Depth: {}\n'.format(DP))
+        f.write('Depth: {}\n'.format(DH))
         f.write('Nodes per layer: {}\n'.format(NH))
         f.write('---------------------------\n')
         f.flush()
@@ -51,65 +54,61 @@ if __name__ == '__main__':
     with open(a.senlst) as f:
         sentences = [l.rstrip() for l in f]
 
-    t_rec = [path.join(TRNDIR, s+'.tfr') for s in sentences]
-    shuffle(t_rec)
+    if a.ndata is None:
+        print2('Counting examples')
+        n = ds.count_examples([path.join(DSATDIR, s+'.tfr')
+                               for s in sentences])
+    else:
+        n = a.ndata
+    n_t = int(a.split * n / a.nbatch)
 
-    v_rec = [path.join(VALDIR, s+'.tfr') for s in sentences]
+    with open(log_path, 'a') as f:
+        f.write('----------DATASET----------\n')
+        f.write('Size: {}\n'.format(n))
+        f.write('Split: {}\n'.format(a.split))
+        f.write('---------------------------\n')
+
+    data = load_dataset(sentences)\
+           .batch(a.nbatch)\
+           .shuffle(buffer_size=1000,
+                    seed=SEED,
+                    reshuffle_each_iteration=False)\
+           .make_initializable_iterator()
+    example = data.get_next()
+    print2('Dataset created')
 
     session_config = tf.ConfigProto(allow_soft_placement=True,
                                     log_device_placement=False)
     session_config.gpu_options.allow_growth = True
     with tf.Session(config=session_config).as_default() as session:
         if a.epoch == 0:
-            model = SLCV1(sentences=sentences,
-                          nl=NL,
-                          nc=NC,
-                          nh=NH,
-                          na=NA,
-                          dp=DP,
-                          rp=RP)
+            model = Trainer(sentences=sentences)
             session.run(tf.global_variables_initializer())
             session.run(tf.tables_initializer())
         else:
-            model = SLCV1(mdldir=mdldir, epoch=a.epoch)
+            model = Trainer(mdldir=mdldir, epoch=a.epoch)
             session.run(tf.tables_initializer())
-
-        saver = tf.train.Saver(max_to_keep=0)
-
         print2('Model created')
 
-        t_data = ds.load_trainset(t_rec)\
-                 .shuffle(buffer_size=100000)\
-                 .batch(a.nbatch)\
-                 .make_initializable_iterator()
-        t_example = t_data.get_next()
-
-        v_data = ds.load_trainset(v_rec)\
-                 .batch(a.nbatch)\
-                 .make_initializable_iterator()
-        v_example = v_data.get_next()
-
-        print2('Dataset created')
+        saver = tf.train.Saver(max_to_keep=0)
 
         epoch = a.epoch+1
         v_loss = None
         while True:
-            print2('Training epoch', epoch)
             t_report = util.Report(epoch, mode='t')
-            session.run(t_data.initializer)
-            while True:
+            session.run(data.initializer)
+            while t_report.iterations < n_t:
                 try:
-                    loss = model.train(*session.run(t_example))
+                    out, loss = model.train(*session.run(example), train=True)
                     t_report.report(loss)
                 except tf.errors.OutOfRangeError:
                     break
             print2()
 
-            v_report = util.Report(epoch, mode='d')
-            session.run(v_data.initializer)
+            v_report = util.Report(epoch, mode='v')
             while True:
                 try:
-                    loss, out = model.predict(*session.run(v_example))
+                    out, loss = model.train(*session.run(example), train=False)
                     v_report.report(loss)
                 except tf.errors.OutOfRangeError:
                     break
@@ -120,18 +119,14 @@ if __name__ == '__main__':
                         .format(epoch, t_report.avg_loss, v_report.avg_loss))
                 f.flush()
 
-            if epoch == 1:
-                tf.train.export_meta_graph(
-                    filename=path.join(mdldir, '_.meta')
-                )
-            saver.save(session,
-                       path.join(mdldir, '_'),
-                       global_step=epoch,
-                       write_meta_graph=False)
+            model.save(saver, mdldir, epoch)
             epoch += 1
 
-            if epoch > 15 and \
-               v_loss is not None and \
-               v_loss < v_report.avg_loss:
+            if epoch > 30:
                 break
+
+            # if epoch > 15 and \
+            #    v_loss is not None and \
+            #    v_loss < v_report.avg_loss:
+            #     break
             v_loss = v_report.avg_loss

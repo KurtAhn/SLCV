@@ -30,10 +30,10 @@ if __name__ == '__main__':
                     .reshape([-1,ax.LF0_DIM])
             x = ax.acoustic(mag=mag, real=real, imag=imag, lf0=lf0)
             x[:,ax.LF0] = np.exp(x[:,ax.LF0])
+            v = ax.voicing(x)
             x = ax.interpolate_f0(x)
             dx = ax.velocity(x)
             ddx = ax.acceleration(x)
-            v = ax.voicing(x)
             x = np.concatenate([x, dx, ddx, v], axis=1)
             lu.write_binfile(x, path.join(ACO3DIR, s+'.aco'))
         except (KeyboardInterrupt, SystemExit):

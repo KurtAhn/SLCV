@@ -21,11 +21,13 @@ class Report:
         self._time = t1
 
         if VERBOSE:
-            print2('\rEpoch: {e}'
+            print2('\r{m}'
+                   ' Epoch: {e}'
                    ' Iteration: {i}'
                    ' Loss: {l:.3e}'
                    ' Avg: {a:.3e}'
                    ' It./s: {s:.3f}'.format(
+                m='Training' if self._mode == 't' else 'Validation',
                 e=self._epoch,
                 i=self._iterations,
                 l=loss,
@@ -36,3 +38,7 @@ class Report:
     @property
     def avg_loss(self):
         return self._total_loss / self._iterations
+
+    @property
+    def iterations(self):
+        return self._iterations
