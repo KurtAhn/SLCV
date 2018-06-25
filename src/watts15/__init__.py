@@ -14,7 +14,7 @@ NC = cfg_net.get('nc', 2)
 NH = cfg_net.get('nh', 64)
 NA = ds.AX_DIM
 DH = cfg_net.get('dh', 6)
-RP = 1e-5
+# RP = 1e-5
 DEVICE = cfg_net.get('device', 'cpu')
 DEVICE = '/gpu:0' if DEVICE == 'gpu' else '/cpu:0'
 
@@ -38,7 +38,12 @@ class Trainer(Model):
                 tf.placeholder('string', [None], name='s')
                 tf.placeholder('float', [None, NC], name='c')
                 tf.placeholder('float', [None, NA], name='a_')
-                self._optimizer = tf.train.AdamOptimizer()
+
+                tf.placeholder('float', name='l2_penalty')
+                tf.placeholder('float', name='keep_prob')
+                self._optimizer = tf.train.AdamOptimizer(
+                    learning_rate=tf.placeholder('float', name='learning_rate')
+                )
 
                 table = tf.contrib.lookup.index_table_from_tensor(
                     mapping=tf.constant(sentences),
@@ -63,20 +68,25 @@ class Trainer(Model):
                 for d in range(DH-1):
                     h = tf.nn.tanh(tf.add(tf.matmul(h, self['W{}'.format(d)]),
                                           self['b{}'.format(d)]))
+                    h = tf.nn.dropout(h, self['keep_prob'])
                 tf.add(tf.matmul(h, self['W{}'.format(DH-1)]),
                        self['b{}'.format(DH-1)],
                        name='a')
 
-                j = sum([RP * tf.nn.l2_loss(self['W{}'.format(d)])
+                j = sum([self['l2_penalty'] * tf.nn.l2_loss(self['W{}'.format(d)])
                          for d in range(DH)],
                         tf.reduce_mean(tf.square(self['a'] - self['a_'])))
                 tf.identity(j, name='j')
                 self.optimizer.minimize(self['j'], name='o')
 
-    def train(self, linguistics, sentences, targets, train=False):
+    def train(self, linguistics, sentences, targets, train=False,
+              **kwargs):
         session = tf.get_default_session()
         switch = np.ones([linguistics.shape[0]], dtype=bool)
         dummy = np.zeros([linguistics.shape[0], NC], dtype=float)
+        l2_penalty = kwargs.get('l2_penalty', 1e-5)
+        keep_prob = kwargs.get('keep_prob', 1.0)
+        learning_rate = kwargs.get('learning_rate', 0.001)
         if train:
             return session.run(
                 [self['a'], self['j'], self['o']],
@@ -85,6 +95,9 @@ class Trainer(Model):
                     self['l']: linguistics,
                     self['s']: sentences,
                     self['c']: dummy,
+                    self['l2_penalty']: l2_penalty,
+                    self['keep_prob']: keep_prob,
+                    self['learning_rate']: learning_rate,
                     self['a_']: targets
                 }
             )[:2]
@@ -96,6 +109,8 @@ class Trainer(Model):
                     self['l']: linguistics,
                     self['s']: sentences,
                     self['c']: dummy,
+                    self['l2_penalty']: l2_penalty,
+                    self['keep_prob']: 1.0,
                     self['a_']: targets
                 }
             )
@@ -106,7 +121,8 @@ class Trainer(Model):
                     self['b']: True,
                     self['l']: linguistics,
                     self['s']: sentences,
-                    self['c']: dummy
+                    self['c']: dummy,
+                    self['keep_prob']: 1.0
                 }
             )
 
@@ -117,7 +133,8 @@ class Trainer(Model):
                 self['b']: False,
                 self['l']: linguistics,
                 self['s']: np.array(['']*linguistics.shape[0]),
-                self['c']: controls
+                self['c']: controls,
+                self['keep_prob']: 1.0
             }
         )
 
@@ -136,7 +153,7 @@ class Trainer(Model):
 
 def load_dataset(sentences):
     return TFRecordDataset([path.join(DSATDIR, sentence+'.tfr')
-                               for sentence in sentences])\
+                            for sentence in sentences])\
         .map(
             lambda record: \
                 tf.parse_single_example(

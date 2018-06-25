@@ -21,13 +21,14 @@ class Report:
         self._time = t1
 
         if VERBOSE:
-            print2('\r{m}'
-                   ' Epoch: {e}'
+            print2('\r\x1b[0;{m};40m'
+                   'Epoch: {e}'
                    ' Iteration: {i}'
                    ' Loss: {l:.3e}'
                    ' Avg: {a:.3e}'
-                   ' It./s: {s:.3f}'.format(
-                m='Training' if self._mode == 't' else 'Validation',
+                   ' It./s: {s:.3f}'
+                   '\x1b[0m'.format(
+                m=37 if self._mode == 't' else 33,
                 e=self._epoch,
                 i=self._iterations,
                 l=loss,
