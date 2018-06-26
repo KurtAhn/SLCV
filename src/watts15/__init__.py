@@ -95,10 +95,10 @@ class Trainer(Model):
                     self['l']: linguistics,
                     self['s']: sentences,
                     self['c']: dummy,
+                    self['a_']: targets
                     self['l2_penalty']: l2_penalty,
                     self['keep_prob']: keep_prob,
                     self['learning_rate']: learning_rate,
-                    self['a_']: targets
                 }
             )[:2]
         elif targets is not None:
@@ -109,9 +109,9 @@ class Trainer(Model):
                     self['l']: linguistics,
                     self['s']: sentences,
                     self['c']: dummy,
+                    self['a_']: targets
                     self['l2_penalty']: l2_penalty,
                     self['keep_prob']: 1.0,
-                    self['a_']: targets
                 }
             )
         else:

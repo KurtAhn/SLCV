@@ -51,7 +51,7 @@ def load_config(filepath):
     MDLASDIR = cfg_dir.get('mdlas', path.join(DATDIR, 'mdlas')).replace('$', PRJDIR)
     MDLAEDIR = cfg_dir.get('mdlae', path.join(DATDIR, 'mdlae')).replace('$', PRJDIR)
     SYNWDIR = cfg_dir.get('synw', path.join(DATDIR, 'synw')).replace('$', PRJDIR)
-    SYNASDIR = cfg_dir.get('syna', path.join(DATDIR, 'syna')).replace('$', PRJDIR)
+    SYNADIR = cfg_dir.get('syna', path.join(DATDIR, 'syna')).replace('$', PRJDIR)
 
     STDOUT = cfg_log.get('stdout', '&1')
     STDOUT = sys.stdout if STDOUT == '&1' else \

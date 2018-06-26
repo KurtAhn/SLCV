@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 from __init__ import load_config
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from os import path, mkdir
 import shutil
 import numpy as np
@@ -15,8 +17,9 @@ if __name__ == '__main__':
     p.add_argument('-e', '--epoch', dest='epoch', type=int, default=0)
     p.add_argument('-w', '--words', dest='words', required=True)
     p.add_argument('-o', '--oracle', dest='oracle', required=True)
-    p.add_argument('-b', '--nbatch', dest='nbatch', type=int, default=16)
-    p.add_argument('-x', '--split', dest='split', type=float, default=0.9)
+    p.add_argument('--batch', dest='batch', type=int, default=16)
+    p.add_argument('--split', dest='split', type=float, default=0.95)
+    p.add_argument('--rate', dest='rate', type=float, default=0.001)
     a = p.parse_args()
 
     load_config(a.config)
@@ -26,7 +29,7 @@ if __name__ == '__main__':
     from ahn18 import *
     import util
 
-    mdldir = path.join(MDLDIR, a.model)
+    mdldir = path.join(MDLAEDIR, a.model)
     try:
         mkdir(mdldir)
     except FileExistsError:
@@ -35,13 +38,12 @@ if __name__ == '__main__':
 
     log_path = path.join(mdldir, 'log.txt')
     with open(log_path, 'a') as f:
-        f.write('----MODEL CONFIGURATION----\n')
+        f.write('---------------------------\n')
         f.write('NC: {}\n'.format(NC))
-        f.write('DH: {}\n'.format(DH))
-        f.write('NH: {}\n'.format(NH))
         f.write('DE: {}\n'.format(DE))
         f.write('NE: {}\n'.format(NE))
-        f.write('---------------------------\n')
+        f.write('batch: {}\n'.format(a.batch))
+        f.write('rate: {}\n'.format(a.rate))
         f.flush()
 
     with open(a.senlst) as f:
@@ -49,17 +51,16 @@ if __name__ == '__main__':
 
     data = load_encoder_dataset(sentences, a.oracle)\
            .shuffle(buffer_size=10000, seed=SEED)\
-           .padded_batch(a.nbatch,
+           .padded_batch(a.batch,
                          padded_shapes=([None,NE],[],[NC]))\
            .make_initializable_iterator()
     example = data.get_next()
 
     with open(log_path, 'a') as f:
-        f.write('----------DATASET----------\n')
-        f.write('Size: {}\n'.format(len(sentences)))
-        f.write('Split: {}\n'.format(a.split))
+        f.write('size: {}\n'.format(len(sentences)))
+        f.write('split: {}\n'.format(a.split))
         f.write('---------------------------\n')
-    t_n = int(a.split * len(sentences) / a.nbatch)
+    t_n = int(a.split * len(sentences) / a.batch)
     print2('Dataset created')
 
     session_config = tf.ConfigProto(allow_soft_placement=True,
@@ -71,10 +72,9 @@ if __name__ == '__main__':
             session.run(tf.global_variables_initializer())
         else:
             model = Encoder(mdldir=mdldir, epoch=a.epoch)
+        print2('Model created')
 
         saver = tf.train.Saver(max_to_keep=0)
-
-        print2('Model created')
 
         epoch = a.epoch+1
         v_loss = None
@@ -83,7 +83,9 @@ if __name__ == '__main__':
             session.run(data.initializer)
             while t_report.iterations < t_n:
                 try:
-                    controls, loss = model.predict(*session.run(example), train=True)
+                    controls, loss = model.encode(*session.run(example),
+                                                  train=True,
+                                                  learning_rate=a.rate)
                     t_report.report(loss)
                 except tf.errors.OutOfRangeError:
                     break
@@ -92,7 +94,8 @@ if __name__ == '__main__':
             v_report = util.Report(epoch, mode='d')
             while True:
                 try:
-                    controls, loss = model.predict(*session.run(example), train=False)
+                    controls, loss = model.encode(*session.run(example),
+                                                  train=False)
                     v_report.report(loss)
                 except tf.errors.OutOfRangeError:
                     break
@@ -105,8 +108,5 @@ if __name__ == '__main__':
 
             model.save(saver, mdldir, epoch)
             epoch += 1
-
-            if epoch > 5:
-                break
 
             v_loss = v_report.avg_loss

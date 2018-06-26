@@ -16,7 +16,7 @@ DH = cfg_net.get('dh', 6)
 NA = ds.AX_DIM
 NE = cfg_net.get('ne', 300)
 DE = cfg_net.get('de', 2)
-RP = 1e-5
+# RP = 1e-5
 DEVICE = cfg_net.get('device', 'cpu')
 DEVICE = '/gpu:0' if DEVICE == 'gpu' else '/cpu:0'
 
@@ -34,10 +34,12 @@ class Encoder(Model):
                 tf.placeholder('int64', [None], name='n')
                 tf.placeholder('float', [None, NC], name='s_')
 
-                self._optimizer = tf.train.AdamOptimizer()
+                self._optimizer = tf.train.AdamOptimizer(
+                    learning_rate=tf.placeholder('float', name='learning_rate')
+                )
 
                 cells = tf.nn.rnn_cell.MultiRNNCell(
-                    [tf.nn.rnn_cell.BasicLSTMCell(NE)] * DE,
+                    [tf.nn.rnn_cell.GRUCell(NE)] * DE,
                     state_is_tuple=True)
                 y, q = tf.nn.bidirectional_dynamic_rnn(
                     cell_fw=cells,
@@ -50,11 +52,13 @@ class Encoder(Model):
                 )
 
                 tf.Variable(init([NE*2, NC]), name='P')
-                tf.matmul(tf.concat([q[0][-1].h, q[1][-1].h], axis=1), self['P'], name='s')
+                #tf.matmul(tf.concat([q[0][-1].h, q[1][-1].h], axis=1), self['P'], name='s')
+                tf.matmul(tf.concat([q[0][-1], q[1][-1]], axis=1), self['P'], name='s')
                 tf.reduce_mean(tf.square(self['s'] - self['s_']), name='j')
                 self.optimizer.minimize(self['j'], name='o')
 
-    def encode(self, tokens, lengths, targets, train=False):
+    def encode(self, tokens, lengths, targets, train=False, **kwargs):
+        learning_rate = kwargs.get('learning_rate', 0.001)
         session = tf.get_default_session()
         if train:
             return session.run(
@@ -62,7 +66,8 @@ class Encoder(Model):
                 feed_dict={
                     self['e']: tokens,
                     self['n']: lengths,
-                    self['s_']: targets
+                    self['s_']: targets,
+                    self['learning_rate']: learning_rate
                 }
             )[:-1]
         elif targets is not None:
@@ -101,7 +106,11 @@ class Synthesizer(Model):
                 tf.placeholder('float', [None, NC], name='c')
                 tf.placeholder('float', [None, NA], name='a_')
 
-                self._optimizer = tf.train.AdamOptimizer()
+                tf.placeholder('float', name='l2_penalty')
+                tf.placeholder('float', name='keep_prob')
+                self._optimizer = tf.train.AdamOptimizer(
+                    learning_rate=tf.placeholder('float', name='learning_rate')
+                )
 
                 tf.Variable(init([NL+NC, NH]), name='W0')
                 for d in range(1, DH-1):
@@ -116,17 +125,22 @@ class Synthesizer(Model):
                 for d in range(DH-1):
                     h = tf.nn.tanh(tf.add(tf.matmul(h, self['W{}'.format(d)]),
                                           self['b{}'.format(d)]))
+                    h = tf.nn.dropout(h, self['keep_prob'])
                 tf.add(tf.matmul(h, self['W{}'.format(DH-1)]),
                        self['b{}'.format(DH-1)],
                        name='a')
 
-                j = sum([RP * tf.nn.l2_loss(self['W{}'.format(d)])
+                j = sum([self['l2_penalty'] * tf.nn.l2_loss(self['W{}'.format(d)])
                          for d in range(DH)],
                         tf.reduce_mean(tf.square(self['a'] - self['a_'])))
                 tf.identity(j, name='j')
                 self.optimizer.minimize(self['j'], name='o')
 
-    def synthesize(self, linguistics, controls, targets, train=False):
+    def synth(self, linguistics, controls, targets, train=False, **kwargs):
+        l2_penalty = kwargs.get('l2_penalty', 1e-5)
+        learning_rate = kwargs.get('learning_rate', 0.001)
+        keep_prob = kwargs.get('keep_prob', 1.0)
+
         session = tf.get_default_session()
         if train:
             return session.run(
@@ -134,7 +148,10 @@ class Synthesizer(Model):
                 feed_dict={
                     self['l']: linguistics,
                     self['c']: controls,
-                    self['a_']: targets
+                    self['a_']: targets,
+                    self['l2_penalty']: l2_penalty,
+                    self['learning_rate']: learning_rate,
+                    self['keep_prob']: keep_prob
                 }
             )[:2]
         elif targets is not None:
@@ -143,7 +160,9 @@ class Synthesizer(Model):
                 feed_dict={
                     self['l']: linguistics,
                     self['c']: controls,
-                    self['a_']: targets
+                    self['a_']: targets,
+                    self['l2_penalty']: l2_penalty,
+                    self['keep_prob']: 1.0
                 }
             )
         else:
@@ -151,7 +170,8 @@ class Synthesizer(Model):
                 [self['a']],
                 feed_dict={
                     self['l']: linguistics,
-                    self['c']: controls
+                    self['c']: controls,
+                    self['keep_prob']: 1.0
                 }
             )
 
