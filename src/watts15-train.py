@@ -29,6 +29,7 @@ if __name__ == '__main__':
     p.add_argument('--split', dest='split', type=float, default=0.95)
     p.add_argument('--rate', dest='rate', type=float, default=0.001)
     p.add_argument('--keep', dest='keep', type=float, default=1.0)
+    p.add_argument('--equal', dest='weigh', action='store_false')
     a = p.parse_args()
 
     load_config(a.config)
@@ -75,7 +76,7 @@ if __name__ == '__main__':
 
     data = load_dataset(Random(SEED).sample(sentences, len(sentences)))\
            .batch(a.batch)\
-           .shuffle(buffer_size=100,
+           .shuffle(buffer_size=500,
                     seed=SEED,
                     reshuffle_each_iteration=False)\
            .make_initializable_iterator()
@@ -102,9 +103,18 @@ if __name__ == '__main__':
         while True:
             t_report = util.Report(epoch, mode='t')
             session.run(data.initializer)
+            if not a.weigh or epoch == 1:
+                weights = np.ones([len(sentences)], dtype=float)
+            else:
+                E = model.embed(sentences)[0]
+                # mean = np.mean(E, axis=0)
+                weights = np.linalg.norm(E - np.mean(E, axis=0), axis=1)
+                weights /= np.mean(weights, axis=0)
+
             while t_report.iterations < t_size:
                 try:
                     out, loss = model.train(*session.run(example),
+                                            weights=weights,
                                             train=True,
                                             l2_penalty=a.penalty,
                                             learning_rate=a.rate,
@@ -118,6 +128,7 @@ if __name__ == '__main__':
             while True:
                 try:
                     out, loss = model.train(*session.run(example),
+                                            weights=weights,
                                             train=False)
                     v_report.report(loss)
                 except tf.errors.OutOfRangeError:

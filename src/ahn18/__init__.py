@@ -207,7 +207,7 @@ def load_encoder_dataset(sentences, oracle=None):
             (feature['e'],
              feature['n'],
              tf.py_func(
-                lambda s: oracle[indices[s.decode('ascii')],:],
+                lambda s: oracle[indices[s.decode('ascii')],:].reshape(NC),
                 [feature['s']],
                 tf.float32
              ))

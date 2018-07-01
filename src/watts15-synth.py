@@ -20,6 +20,7 @@ if __name__ == '__main__':
     p.add_argument('-m', '--model', dest='model', required=True)
     p.add_argument('-e', '--epoch', dest='epoch', type=int, required=True)
     p.add_argument('-v', '--vector', dest='vector', type=float, nargs='+', required=True)
+    p.add_argument('-o', '--oracle', dest='oracle', action='store_true')
     p.add_argument('-p', '--plot-f0', dest='plot_f0', action='store_true')
     a = p.parse_args()
 
@@ -38,12 +39,20 @@ if __name__ == '__main__':
     outdir = SYNWDIR
     for level in [a.model,
                   str(a.epoch),
-                  ','.join(['{:.3f}'.format(e) for e in a.vector])]:
+                  '{}({})'.format(
+                      '{}-{}+'.format(a.model, a.epoch) \
+                      if a.oracle else '',
+                      ','.join(['{:.3f}'.format(e) for e in a.vector])
+                  )]:
         outdir = path.join(outdir, level)
         try:
             mkdir(outdir)
         except FileExistsError:
             pass
+
+    if a.oracle:
+        with open(path.join(ORCWDIR, '{}-{}.orc'.format(a.model, a.epoch)), 'rb') as f:
+            oracle = np.load(f)
 
     session_config = tf.ConfigProto(allow_soft_placement=True,
                                     log_device_placement=False)
@@ -54,6 +63,13 @@ if __name__ == '__main__':
         print2('Model loaded')
 
         for sentence in sentences:
+            if a.oracle:
+                vector = np.array(a.vector).reshape(1,-1) + \
+                         model.embed([sentence])[0].reshape(1,-1)
+            else:
+                vector = np.array(a.vector).reshape(1,-1)
+            print2(vector)
+
             data = load_dataset([sentence])\
                    .make_one_shot_iterator()
             example = data.get_next()
@@ -62,7 +78,7 @@ if __name__ == '__main__':
             while True:
                 try:
                     out, = model.synth(session.run(example)[0].reshape(1,-1),
-                                       np.array(a.vector).reshape(1,-1))
+                                       vector)
                     outs.append(out)
                 except tf.errors.OutOfRangeError:
                     break

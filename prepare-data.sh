@@ -5,18 +5,18 @@ SRCDIR=$PRJDIR/src
 DATDIR=$PRJDIR/data
 WAVDIR=$DATDIR/wav
 CFG=$PRJDIR/config/ahn18/16x3.json
-SCP=$DATDIR/train.scp
+SCP=$DATDIR/dataset.scp
 
 source $PRJDIR/setup.sh
 source activate thesis
 
-echo -n "" > $SCP
-for f in `ls $WAVDIR/*.wav`; do
-    basename $f | cut -d. -f1 >> $SCP
-done
+# echo -n "" > $SCP
+# for f in `ls $WAVDIR/*.wav`; do
+#     basename $f | cut -d. -f1 >> $SCP
+# done
 
-echo Extracting acoustics >&2
-$SRCDIR/extract-acoustics.py -s $SCP -c $CFG || exit -1
+# echo Extracting acoustics >&2
+# $SRCDIR/extract-acoustics.py -s $SCP -c $CFG || exit -1
 
 echo Realigning states >&2
 $SRCDIR/realign-states.py -s $SCP -c $CFG || exit -1

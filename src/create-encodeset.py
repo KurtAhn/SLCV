@@ -10,7 +10,7 @@ if __name__ == '__main__':
     p = ArgumentParser()
     p.add_argument('-c', '--config', dest='config', required=True)
     p.add_argument('-s', '--senlst', dest='senlst', required=True)
-    p.add_argument('-v', '--vocab', dest='vocab', required=True)
+    p.add_argument('-e', '--embedding', dest='embedding', required=True)
     a = p.parse_args()
 
     load_config(a.config)
@@ -22,14 +22,14 @@ if __name__ == '__main__':
         sentences = [l.rstrip() for l in f if l]
 
     print2('Loading vocabulary')
-    with open(path.join(VOCDIR, a.vocab+'.txt')) as f:
+    with open(path.join(EMBDIR, a.embedding+'.vcb')) as f:
         vocabulary = [l.rstrip() for l in f]
     vocabulary = {t: n for n, t in enumerate(vocabulary)}
 
     print2('Loading embedding')
-    with open(path.join(EMBDIR, a.vocab+'.dim.txt')) as f:
+    with open(path.join(EMBDIR, a.embedding+'.dim')) as f:
         embedding_shape = tuple(int(t) for t in next(f).rstrip().split())
-    embedding = np.memmap(path.join(EMBDIR, a.vocab+'.emb'),
+    embedding = np.memmap(path.join(EMBDIR, a.embedding+'.emb'),
                           mode='r', dtype='float', shape=embedding_shape)
 
     F = tf.train.Feature
@@ -45,7 +45,7 @@ if __name__ == '__main__':
             tokens = np.vstack([embedding[vocabulary.get(t, -1),:]
                                 for t in next(f).rstrip().split()])
 
-        with W(path.join(ENCDIR, sentence+'.tfr')) as writer:
+        with W(path.join(DSSDIR, sentence+'.tfr')) as writer:
             features = {
                 's': F(bytes_list=BL(value=[bytes(sentence, encoding='ascii')])),
                 'n': F(int64_list=IL(value=[tokens.shape[0]])),

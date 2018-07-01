@@ -50,7 +50,7 @@ if __name__ == '__main__':
         sentences = [l.rstrip() for l in f]
 
     data = load_encoder_dataset(sentences, a.oracle)\
-           .shuffle(buffer_size=10000, seed=SEED)\
+           .shuffle(buffer_size=1000, seed=SEED)\
            .padded_batch(a.batch,
                          padded_shapes=([None,NE],[],[NC]))\
            .make_initializable_iterator()
@@ -83,6 +83,7 @@ if __name__ == '__main__':
             session.run(data.initializer)
             while t_report.iterations < t_n:
                 try:
+                    # print2(*session.run(example))
                     controls, loss = model.encode(*session.run(example),
                                                   train=True,
                                                   learning_rate=a.rate)

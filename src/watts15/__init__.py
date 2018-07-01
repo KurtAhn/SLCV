@@ -38,6 +38,7 @@ class Trainer(Model):
                 tf.placeholder('string', [None], name='s')
                 tf.placeholder('float', [None, NC], name='c')
                 tf.placeholder('float', [None, NA], name='a_')
+                tf.placeholder('float', [len(sentences)], name='K')
 
                 tf.placeholder('float', name='l2_penalty')
                 tf.placeholder('float', name='keep_prob')
@@ -50,9 +51,10 @@ class Trainer(Model):
                     num_oov_buckets=1,
                     name='T'
                 )
+                index = table.lookup(self['s'])
 
                 tf.Variable(init([len(sentences)+1, NC]), name='P')
-                tf.nn.embedding_lookup(self['P'], table.lookup(self['s']), name='e')
+                tf.nn.embedding_lookup(self['P'], index, name='e')
 
                 tf.Variable(init([NL+NC,NH]), name='W0')
                 for d in range(1,DH-1):
@@ -75,15 +77,18 @@ class Trainer(Model):
 
                 j = sum([self['l2_penalty'] * tf.nn.l2_loss(self['W{}'.format(d)])
                          for d in range(DH)],
+                        tf.nn.embedding_lookup(self['K'], index) * \
                         tf.reduce_mean(tf.square(self['a'] - self['a_'])))
-                tf.identity(j, name='j')
+                tf.reduce_mean(j, name='j')
                 self.optimizer.minimize(self['j'], name='o')
 
-    def train(self, linguistics, sentences, targets, train=False,
+    def train(self, linguistics, sentences, targets, weights, train=False,
               **kwargs):
         session = tf.get_default_session()
         switch = np.ones([linguistics.shape[0]], dtype=bool)
         dummy = np.zeros([linguistics.shape[0], NC], dtype=float)
+        # weights = np.ones(session.run(tf.shape(self['K']))[0], dtype=float) \
+        #           if not train or weights is None else weights
         l2_penalty = kwargs.get('l2_penalty', 1e-5)
         keep_prob = kwargs.get('keep_prob', 1.0)
         learning_rate = kwargs.get('learning_rate', 0.001)
@@ -95,10 +100,11 @@ class Trainer(Model):
                     self['l']: linguistics,
                     self['s']: sentences,
                     self['c']: dummy,
-                    self['a_']: targets
+                    self['a_']: targets,
+                    self['K']: weights,
                     self['l2_penalty']: l2_penalty,
                     self['keep_prob']: keep_prob,
-                    self['learning_rate']: learning_rate,
+                    self['learning_rate']: learning_rate
                 }
             )[:2]
         elif targets is not None:
@@ -109,9 +115,10 @@ class Trainer(Model):
                     self['l']: linguistics,
                     self['s']: sentences,
                     self['c']: dummy,
-                    self['a_']: targets
+                    self['a_']: targets,
+                    self['K']: weights,
                     self['l2_penalty']: l2_penalty,
-                    self['keep_prob']: 1.0,
+                    self['keep_prob']: 1.0
                 }
             )
         else:
@@ -140,7 +147,7 @@ class Trainer(Model):
 
     def embed(self, sentences):
         return tf.get_default_session().run(
-            [self._c],
+            [self['e']],
             feed_dict={
                 self['s']: sentences
             }

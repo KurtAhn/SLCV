@@ -28,17 +28,26 @@ if __name__ == '__main__':
 
     with tf.Session().as_default() as session:
         model = Encoder(mdldir=path.join(MDLAEDIR, a.model), epoch=a.epoch)
-        session.run(tf.global_variables_initializer())
         session.run(data.initializer)
 
         oracle = []
         while True:
             try:
-                control, = model.predict(*session.run(example), None,
-                                         train=False)
+                control, = model.encode(*session.run(example), None,
+                                        train=False)
                 oracle.append(control)
             except tf.errors.OutOfRangeError:
                 break
 
+    oracle = np.concatenate(oracle, axis=0)
+
+    mean = np.mean(oracle, axis=0)
+    distance = np.linalg.norm(oracle-mean, axis=1)
+    print2(list(map(lambda e: (sentences[e[0]], e[1]),
+                    sorted(enumerate(distance), key=lambda e: e[1], reverse=True)))[:10])
+
     with open(path.join(ORCADIR, '{}-{}.orc'.format(a.model, a.epoch)), 'wb') as f:
-        np.save(f, np.concatenate(oracle, axis=0))
+        np.save(f, oracle)
+
+    pyplot.scatter(*zip(*oracle.reshape(-1,2)), s=1)
+    pyplot.savefig(path.join(ORCADIR, '{}-{}.pdf'.format(a.model, a.epoch)))
