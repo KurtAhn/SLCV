@@ -7,8 +7,10 @@ except AttributeError:
 import acoustic as ax
 import numpy as np
 
-
-AX_DIM = ax.AX_DIM * 3 + 1
+NC = cfg_data.get('nc', 2)
+EXP_F0 = cfg_data.get('exp', True)
+USE_DELTA = cfg_data.get('delta', True)
+AX_DIM = ax.AX_DIM * 3 + 1 if USE_DELTA else ax.AX_DIM + 1
 LX_DIM = cfg_data.get('linguistic-dim', 609)
 WIP = cfg_data.get('word-in-phrase-index', 582)
 PIS = cfg_data.get('phrase-in-sentence-index', 593)

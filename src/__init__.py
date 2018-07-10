@@ -4,7 +4,7 @@ import sys
 from os import path
 
 def load_config(filepath):
-    global config, cfg_data, cfg_dir, cfg_net, cfg_log,\
+    global config, cfg_data, cfg_dir, cfg_syn, cfg_enc, cfg_log,\
            PRJDIR, SRCDIR, RESDIR, DATDIR,\
            WAVDIR, TXTDIR, \
            HTS1DIR, HTS2DIR, \
@@ -22,7 +22,8 @@ def load_config(filepath):
         config = json.load(f)
     cfg_data = config['data']
     cfg_dir = config['directories']
-    cfg_net = config['network']
+    cfg_syn = config['synthesizer']
+    cfg_enc = config['encoder']
     cfg_log = config['log']
 
     PRJDIR = path.dirname(path.dirname(path.realpath(sys.argv[0])))

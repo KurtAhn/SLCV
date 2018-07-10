@@ -4,8 +4,8 @@ PRJDIR=`dirname $0`
 SRCDIR=$PRJDIR/src
 DATDIR=$PRJDIR/data
 WAVDIR=$DATDIR/wav
-CFG=$PRJDIR/config/ahn18/16x3.json
-SCP=$DATDIR/dataset.scp
+CFG=$PRJDIR/config/m60p10ff/ahn18.json
+SCP=$DATDIR/both.scp
 
 source $PRJDIR/setup.sh
 source activate thesis
@@ -18,34 +18,34 @@ source activate thesis
 # echo Extracting acoustics >&2
 # $SRCDIR/extract-acoustics.py -s $SCP -c $CFG || exit -1
 
-echo Realigning states >&2
-$SRCDIR/realign-states.py -s $SCP -c $CFG || exit -1
+# echo Realigning states >&2
+# $SRCDIR/realign-states.py -s $SCP -c $CFG || exit -1
+#
+# echo Creating labels >&2
+# $SRCDIR/create-labels.py -s $SCP -c $CFG || exit -1
+#
+# echo Trimming silent frames >&2
+# $SRCDIR/trim-acoustics.py -s $SCP -c $CFG || exit -1
 
-echo Creating labels >&2
-$SRCDIR/create-labels.py -s $SCP -c $CFG || exit -1
+echo Merging acoustics >&2
+$SRCDIR/merge-acoustics.py -s $SCP -c $CFG || exit -1
 
-echo Trimming silent frames >&2
-$SRCDIR/trim-acoustics.py -s $SCP -c $CFG || exit -1
-
-echo Applying delta >&2
-$SRCDIR/delta-acoustics.py -s $SCP -c $CFG || exit -1
-
-echo Creating embedding >&2
-$SRCDIR/create-embedding.py -c $CFG
-
-echo Tokenizing transcripts >&2
-$SRCDIR/tokenize-transcripts.sh $SCP || exit -1
-
-echo Wordifying transcripts >&2
-$SRCDIR/wordify-transcripts.sh $SCP || exit -1
-
-echo Validating transcripts >&2
-$SRCDIR/validate-transcripts.py -s $SCP || exit -1
+# echo Creating embedding >&2
+# $SRCDIR/create-embedding.py -c $CFG
+#
+# echo Tokenizing transcripts >&2
+# $SRCDIR/tokenize-transcripts.sh $SCP || exit -1
+#
+# echo Wordifying transcripts >&2
+# $SRCDIR/wordify-transcripts.sh $SCP || exit -1
+#
+# echo Validating transcripts >&2
+# $SRCDIR/validate-transcripts.py -s $SCP || exit -1
 
 echo Computing statistics >&2
 $SRCDIR/compute-stats.py -s $SCP -c $CFG || exit -1
 
 echo Creating dataset >&2
-$SRCDIR/create-acoustic-train.py -s $SCP -c $CFG || exit -1
+$SRCDIR/create-trainset.py -s $SCP -c $CFG || exit -1
 
 source deactivate

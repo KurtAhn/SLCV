@@ -10,23 +10,31 @@ import numpy as np
 
 
 NL = ds.LX_DIM
-NC = cfg_net.get('nc', 2)
-NH = cfg_net.get('nh', 64)
-DH = cfg_net.get('dh', 6)
+NC = ds.NC
+# NC = cfg_net.get('nc', 2)
+# NH = cfg_enc.get('nh', 64)
+# DH = cfg_enc.get('dh', 6)
 NA = ds.AX_DIM
-NE = cfg_net.get('ne', 300)
-DE = cfg_net.get('de', 2)
+NE = cfg_enc.get('ne', 300)
+NP = cfg_enc.get('np', 300)
+DP = cfg_enc.get('dp', 0)
+DR = cfg_enc.get('dr', 1)
 # RP = 1e-5
-DEVICE = cfg_net.get('device', 'cpu')
+USE_LSTM = cfg_enc.get('lstm', True)
+DEVICE = cfg_enc.get('device', 'cpu')
 DEVICE = '/gpu:0' if DEVICE == 'gpu' else '/cpu:0'
 
 
 class Encoder(Model):
     def __init__(self, **kwargs):
-        Model.__init__(self, 'ahn18.Encoder', **kwargs)
+        Model.__init__(self, 'Encoder', **kwargs)
 
     def _create(self, **kwargs):
-        init = lambda shape: tf.truncated_normal(shape, stddev=0.1)
+        winit = tf.contrib.layers.xavier_initializer()
+        wfunc = tf.nn.tanh
+        rinit = tf.contrib.layers.variance_scaling_initializer()
+        rfunc = tf.nn.relu
+        pinit = rinit #lambda shape: tf.random_normal(shape, stddev=0.1)
 
         with tf.device(DEVICE):
             with tf.name_scope(self.name) as scope:
@@ -38,22 +46,47 @@ class Encoder(Model):
                     learning_rate=tf.placeholder('float', name='learning_rate')
                 )
 
-                cells = tf.nn.rnn_cell.MultiRNNCell(
-                    [tf.nn.rnn_cell.GRUCell(NE)] * DE,
-                    state_is_tuple=True)
-                y, q = tf.nn.bidirectional_dynamic_rnn(
-                    cell_fw=cells,
-                    cell_bw=cells,
-                    inputs=self['e'],
-                    sequence_length=self['n'],
-                    dtype='float',
-                    time_major=False,
-                    scope=scope
-                )
+                if DP > 0:
+                    tf.Variable(winit([NE,NP]), name='W0')
+                    tf.Variable(winit([1,NP]), name='b0')
+                    h = tf.scan(lambda a, x: wfunc(x @ self['W0'] + self['b0']), self['e'])
+                    # h = wfunc(self['e'] @ self['W0'] + self['b0'])
+                    if DP > 1:
+                        for d in range(1,DP):
+                            Wd = 'W{}'.format(d)
+                            bd = 'b{}'.format(d)
+                            tf.Variable(winit([NP,NP]), name=Wd)
+                            tf.Variable(winit([1,NP]), name=bd)
+                            h = tf.scan(lambda a, x: wfunc(x @ self[Wd] + self[bd]), self['e'])
+                            # h = wfunc(h @ self[Wd] + self[bd])
+                else:
+                    h = self['e']
 
-                tf.Variable(init([NE*2, NC]), name='P')
-                #tf.matmul(tf.concat([q[0][-1].h, q[1][-1].h], axis=1), self['P'], name='s')
-                tf.matmul(tf.concat([q[0][-1], q[1][-1]], axis=1), self['P'], name='s')
+                cell_type = tf.nn.rnn_cell.BasicLSTMCell if USE_LSTM else \
+                            tf.nn.rnn_cell.GRUCell
+
+                with tf.variable_scope('brnn', initializer=rinit):
+                    cells = tf.nn.rnn_cell.MultiRNNCell(
+                        [cell_type(num_units=NP, activation=rfunc) for d in range(DR)],
+                        state_is_tuple=True
+                    )
+
+                    y, q = tf.nn.bidirectional_dynamic_rnn(
+                        cell_fw=cells,
+                        cell_bw=cells,
+                        inputs=h,
+                        sequence_length=self['n'],
+                        dtype='float',
+                        time_major=False
+                    )
+
+                if USE_LSTM:
+                    tf.concat([q[0][-1].h, q[1][-1].h], axis=1, name='q')
+                else:
+                    tf.concat([q[0][-1], q[1][-1]], axis=1, name='q')
+
+                tf.Variable(pinit([2*NP, NC]), name='P')
+                tf.matmul(self['q'], self['P'], name='s')
                 tf.reduce_mean(tf.square(self['s'] - self['s_']), name='j')
                 self.optimizer.minimize(self['j'], name='o')
 
@@ -93,95 +126,99 @@ class Encoder(Model):
         return self._optimizer
 
 
-class Synthesizer(Model):
-    def __init__(self, **kwargs):
-        Model.__init__(self, 'ahn18.Synthesizer', **kwargs)
-
-    def _create(self, **kwargs):
-        init = lambda shape: tf.truncated_normal(shape, stddev=0.1)
-
-        with tf.device(DEVICE):
-            with tf.name_scope(self.name) as scope:
-                tf.placeholder('float', [None, NL], name='l')
-                tf.placeholder('float', [None, NC], name='c')
-                tf.placeholder('float', [None, NA], name='a_')
-
-                tf.placeholder('float', name='l2_penalty')
-                tf.placeholder('float', name='keep_prob')
-                self._optimizer = tf.train.AdamOptimizer(
-                    learning_rate=tf.placeholder('float', name='learning_rate')
-                )
-
-                tf.Variable(init([NL+NC, NH]), name='W0')
-                for d in range(1, DH-1):
-                    tf.Variable(init([NH, NH]), name='W{}'.format(d))
-                tf.Variable(init([NH, NA]), name='W{}'.format(DH-1))
-
-                for d in range(DH-1):
-                    tf.Variable(init([1, NH]), name='b{}'.format(d))
-                tf.Variable(init([1, NA]), name='b{}'.format(DH-1))
-
-                h = tf.concat([self['l'], self['c']], axis=1)
-                for d in range(DH-1):
-                    h = tf.nn.tanh(tf.add(tf.matmul(h, self['W{}'.format(d)]),
-                                          self['b{}'.format(d)]))
-                    h = tf.nn.dropout(h, self['keep_prob'])
-                tf.add(tf.matmul(h, self['W{}'.format(DH-1)]),
-                       self['b{}'.format(DH-1)],
-                       name='a')
-
-                j = sum([self['l2_penalty'] * tf.nn.l2_loss(self['W{}'.format(d)])
-                         for d in range(DH)],
-                        tf.reduce_mean(tf.square(self['a'] - self['a_'])))
-                tf.identity(j, name='j')
-                self.optimizer.minimize(self['j'], name='o')
-
-    def synth(self, linguistics, controls, targets, train=False, **kwargs):
-        l2_penalty = kwargs.get('l2_penalty', 1e-5)
-        learning_rate = kwargs.get('learning_rate', 0.001)
-        keep_prob = kwargs.get('keep_prob', 1.0)
-
-        session = tf.get_default_session()
-        if train:
-            return session.run(
-                [self['a'], self['j'], self['o']],
-                feed_dict={
-                    self['l']: linguistics,
-                    self['c']: controls,
-                    self['a_']: targets,
-                    self['l2_penalty']: l2_penalty,
-                    self['learning_rate']: learning_rate,
-                    self['keep_prob']: keep_prob
-                }
-            )[:2]
-        elif targets is not None:
-            return session.run(
-                [self['a'], self['j']],
-                feed_dict={
-                    self['l']: linguistics,
-                    self['c']: controls,
-                    self['a_']: targets,
-                    self['l2_penalty']: l2_penalty,
-                    self['keep_prob']: 1.0
-                }
-            )
-        else:
-            return session.run(
-                [self['a']],
-                feed_dict={
-                    self['l']: linguistics,
-                    self['c']: controls,
-                    self['keep_prob']: 1.0
-                }
-            )
-
-    @property
-    def optimizer(self):
-        return self._optimizer
+# class Synthesizer(Model):
+#     def __init__(self, **kwargs):
+#         Model.__init__(self, 'ahn18.Synthesizer', **kwargs)
+#
+#     def _create(self, **kwargs):
+#         init = tf.contrib.layers.xavier_initializer()
+#         func = tf.nn.tanh
+#
+#         with tf.device(DEVICE):
+#             with tf.name_scope(self.name) as scope:
+#                 tf.placeholder('float', [None, NL], name='l')
+#                 tf.placeholder('float', [None, NC], name='c')
+#                 tf.placeholder('float', [None, NA], name='a_')
+#
+#                 tf.placeholder('float', name='l2_penalty')
+#                 tf.placeholder('float', name='keep_prob')
+#                 self._optimizer = tf.train.AdamOptimizer(
+#                     learning_rate=tf.placeholder('float', name='learning_rate')
+#                 )
+#
+#                 tf.Variable(init([NL+NC, NH]), name='W0')
+#                 for d in range(1, DH-1):
+#                     tf.Variable(init([NH, NH]), name='W{}'.format(d))
+#                 tf.Variable(init([NH, NA]), name='W{}'.format(DH-1))
+#
+#                 for d in range(DH-1):
+#                     tf.Variable(init([1, NH]), name='b{}'.format(d))
+#                 tf.Variable(init([1, NA]), name='b{}'.format(DH-1))
+#
+#                 h = tf.concat([self['l'], self['c']], axis=1)
+#                 for d in range(DH-1):
+#                     h = func(tf.add(tf.matmul(h, self['W{}'.format(d)]),
+#                                     self['b{}'.format(d)]))
+#                     h = tf.nn.dropout(h, self['keep_prob'])
+#                 tf.add(tf.matmul(h, self['W{}'.format(DH-1)]),
+#                        self['b{}'.format(DH-1)],
+#                        name='a')
+#
+#                 # j = sum([self['l2_penalty'] * tf.nn.l2_loss(self['W{}'.format(d)])
+#                 #          for d in range(DH)],
+#                 #         tf.reduce_mean(tf.square(self['a'] - self['a_'])))
+#                 # tf.identity(j, name='j')
+#                 j = tf.reduce_mean(tf.abs(self['a'] - self['a_']))
+#                 tf.add(j, tf.add_n([tf.nn.l2_loss(self['W{}'.format(d)])
+#                                     for d in range(DH)]) * self['l2_penalty'],
+#                        name='j')
+#                 self.optimizer.minimize(self['j'], name='o')
+#
+#     def synth(self, linguistics, controls, targets, train=False, **kwargs):
+#         l2_penalty = kwargs.get('l2_penalty', 1e-5)
+#         learning_rate = kwargs.get('learning_rate', 0.001)
+#         keep_prob = kwargs.get('keep_prob', 1.0)
+#
+#         session = tf.get_default_session()
+#         if train:
+#             return session.run(
+#                 [self['a'], self['j'], self['o']],
+#                 feed_dict={
+#                     self['l']: linguistics,
+#                     self['c']: controls,
+#                     self['a_']: targets,
+#                     self['l2_penalty']: l2_penalty,
+#                     self['learning_rate']: learning_rate,
+#                     self['keep_prob']: keep_prob
+#                 }
+#             )[:2]
+#         elif targets is not None:
+#             return session.run(
+#                 [self['a'], self['j']],
+#                 feed_dict={
+#                     self['l']: linguistics,
+#                     self['c']: controls,
+#                     self['a_']: targets,
+#                     self['l2_penalty']: l2_penalty,
+#                     self['keep_prob']: 1.0
+#                 }
+#             )
+#         else:
+#             return session.run(
+#                 [self['a']],
+#                 feed_dict={
+#                     self['l']: linguistics,
+#                     self['c']: controls,
+#                     self['keep_prob']: 1.0
+#                 }
+#             )
+#
+#     @property
+#     def optimizer(self):
+#         return self._optimizer
 
 
 def load_encoder_dataset(sentences, oracle=None):
-    indices = {s: n for n, s in enumerate(sentences)}
     dataset = TFRecordDataset([path.join(DSSDIR, sentence+'.tfr')
                                for sentence in sentences])\
         .map(
@@ -201,8 +238,7 @@ def load_encoder_dataset(sentences, oracle=None):
     if oracle is None:
         return dataset.map(lambda feature: (feature['e'], feature['n']))
     else:
-        with open(path.join(ORCWDIR, oracle+'.orc'), 'rb') as f:
-            oracle = np.load(f)
+        indices = {s: n for n, s in enumerate(sentences)}
         return dataset.map(lambda feature: \
             (feature['e'],
              feature['n'],
@@ -224,7 +260,7 @@ def load_synthesizer_dataset(sentences, oracle=None):
                     record,
                     features={
                         's': tf.FixedLenFeature([], tf.string),
-                        'w': tf.FixedLenFeature([], tf.string),
+                        # 'w': tf.FixedLenFeature([], tf.string),
                         'l': tf.FixedLenFeature([ds.LX_DIM], tf.float32),
                         'a': tf.FixedLenFeature([ds.AX_DIM], tf.float32)
                     }

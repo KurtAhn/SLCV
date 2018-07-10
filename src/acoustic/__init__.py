@@ -61,9 +61,9 @@ def interpolate_f0(a, kind='linear'):
     a[:, LF0] = i(np.arange(a.shape[0]))
     return a
 
-def voicing(a):
+def voicing(a, threshold):
     b = np.zeros([a.shape[0], 1])
-    b[a[:,LF0] > 1.0] = 1.0
+    b[a[:,LF0] > threshold] = 1.0
     return b
 
 

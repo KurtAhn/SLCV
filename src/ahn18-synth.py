@@ -2,6 +2,8 @@
 from __init__ import load_config
 import sys, os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+sys.path.append(os.environ['MERLIN'])
+from utils.compute_distortion import IndividualDistortionComp
 sys.path.append(os.environ['MAGPHASE'])
 import libutils as lu
 from subprocess import call
@@ -9,6 +11,7 @@ from os import path, mkdir
 import matplotlib.pyplot as pyplot
 import tensorflow as tf
 import numpy as np
+np.warnings.filterwarnings('ignore')
 from argparse import ArgumentParser
 
 
@@ -105,23 +108,26 @@ if __name__ == '__main__':
         f = x[:,ax.LF0]
         x = x[:,:ax.AX_DIM-1]
 
-        u = np.mean(x, axis=0)
-        si = np.reciprocal(np.std(x, axis=0))
-        x = np.add(np.multiply(np.subtract(x, u), si), u)
+        # u = np.mean(x, axis=0)
+        # si = np.reciprocal(np.std(x, axis=0))
+        # x = np.add(np.multiply(np.subtract(x, u), si), u)
         x = ax.destandardize(np.concatenate([x, f], axis=1),
                              mean[:ax.AX_DIM], stddev[:ax.AX_DIM])
-        x[:,ax.LF0][x[:,ax.LF0] < 50.0] = 50.0
-        x[:,ax.LF0][v <= mean[-1]] = 0.0
-        x[:,ax.LF0] = np.log(x[:,ax.LF0])
+        # x[:,ax.LF0][x[:,ax.LF0] < 50.0] = 50.0
+        if ds.EXP_F0:
+            x[:,ax.LF0][v <= mean[-1]] = 0.0
+            x[:,ax.LF0] = np.log(x[:,ax.LF0])
+        else:
+            x[:,ax.LF0][v <= mean[-1]] = float('-Inf')
 
-        if a.plot_f0:
-            t = [n * 0.005 for n in range(x.shape[0])]
-            pyplot.plot(t, np.exp(x[:,ax.LF0]))
-            x2 = lu.read_binfile(path.join(ACO3DIR, sentence+'.aco'), dim=ds.AX_DIM)
-            x2[:,ax.LF0][x2[:,-1] == 0.0] = 0.0
-            pyplot.plot(t, [y if y > 0 else 0.0 for y in x2[:len(t),ax.LF0]])
-            pyplot.savefig(path.join(outdir, sentence+'_f0.pdf'))
-            pyplot.close()
+        # if a.plot_f0:
+        #     t = [n * 0.005 for n in range(x.shape[0])]
+        #     pyplot.plot(t, np.exp(x[:,ax.LF0]))
+        #     x2 = lu.read_binfile(path.join(ACO3DIR, sentence+'.aco'), dim=ds.AX_DIM)
+        #     x2[:,ax.LF0][x2[:,-1] == 0.0] = 0.0
+        #     pyplot.plot(t, [y if y > 0 else 0.0 for y in x2[:len(t),ax.LF0]])
+        #     pyplot.savefig(path.join(outdir, sentence+'_f0.pdf'))
+        #     pyplot.close()
 
         lu.write_binfile(x[:,ax.MAG], path.join(outdir, sentence+'.mag'))
         lu.write_binfile(x[:,ax.REAL], path.join(outdir, sentence+'.real'))

@@ -41,30 +41,36 @@ if __name__ == '__main__':
         y = lu.read_binfile(path.join(ACO3DIR, s+'.aco'), dim=ds.AX_DIM)
         y = ax.standardize(y, mean, stddev)
 
-        with open(path.join(WORDIR, s+'.txt')) as f:
-            words = next(f).lstrip().split()
+        # with open(path.join(WORDIR, s+'.txt')) as f:
+        #     words = next(f).lstrip().split()
+        #
+        # n = 0
+        # w = [words[n]]
+        # for t in range(1, l.shape[0]):
+        #     if l[t, ds.WIP] <= 0.01:
+        #         w.append('<unk>')
+        #     else:
+        #         try:
+        #             if l[t-1, ds.WIP] != l[t, ds.WIP]:
+        #                 n += 1
+        #         except IndexError:
+        #             pass
+        #         try:
+        #             w.append(words[n])
+        #         except IndexError:
+        #             continue
 
-        n = 0
-        w = [words[n]]
-        for t in range(1, l.shape[0]):
-            if l[t, ds.WIP] <= 0.01:
-                w.append('<unk>')
-            else:
-                try:
-                    if l[t-1, ds.WIP] != l[t, ds.WIP]:
-                        n += 1
-                except IndexError:
-                    pass
-                try:
-                    w.append(words[n])
-                except IndexError:
-                    continue
-
-        with W(path.join(TRNDIR, s+'.tfr')) as writer:
-            for lt, yt, wt in zip(l, y, w):
+        with W(path.join(DSATDIR, s+'.tfr')) as writer:
+            # for lt, yt, wt in zip(l, y, w):
+            #     feature = {
+            #         's': F(bytes_list=BL(value=[bytes(s, encoding='ascii')])),
+            #         'w': F(bytes_list=BL(value=[bytes(wt, encoding='ascii')])),
+            #         'l': F(float_list=FL(value=lt)),
+            #         'a': F(float_list=FL(value=yt))
+            #     }
+            for lt, yt in zip(l, y):
                 feature = {
                     's': F(bytes_list=BL(value=[bytes(s, encoding='ascii')])),
-                    'w': F(bytes_list=BL(value=[bytes(wt, encoding='ascii')])),
                     'l': F(float_list=FL(value=lt)),
                     'a': F(float_list=FL(value=yt))
                 }

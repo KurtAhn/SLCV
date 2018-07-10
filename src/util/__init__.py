@@ -38,7 +38,10 @@ class Report:
 
     @property
     def avg_loss(self):
-        return self._total_loss / self._iterations
+        try:
+            return self._total_loss / self._iterations
+        except ZeroDivisionError:
+            return 0
 
     @property
     def iterations(self):

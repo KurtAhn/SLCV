@@ -20,8 +20,8 @@ def extract(sentence, wavdir, outdir):
     try:
         mp.analysis_for_acoustic_modelling(path.join(wavdir, sentence+'.wav'),
                                            outdir,
-                                           mag_dim=cfg_data.get('magnitude-dim', 60),
-                                           phase_dim=cfg_data.get('phase-dim', 45))
+                                           mag_dim=cfg_data.get('nm', 60),
+                                           phase_dim=cfg_data.get('np', 45))
     except (KeyboardInterrupt, SystemExit):
         raise
     except:
