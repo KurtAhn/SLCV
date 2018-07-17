@@ -44,3 +44,6 @@ class Model:
                 return g.get_operation_by_name('{}/{}'.format(self.name, k))
             except KeyError:
                 raise KeyError('Nonexistent name: {}/{}'.format(self.name, k))
+
+    def __getattr__(self, a):
+        return self[a]

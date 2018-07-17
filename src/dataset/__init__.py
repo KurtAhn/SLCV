@@ -10,6 +10,7 @@ import numpy as np
 NC = cfg_data.get('nc', 2)
 EXP_F0 = cfg_data.get('exp', True)
 USE_DELTA = cfg_data.get('delta', True)
+CONST_RATE = cfg_data.get('const', True)
 AX_DIM = ax.AX_DIM * 3 + 1 if USE_DELTA else ax.AX_DIM + 1
 LX_DIM = cfg_data.get('linguistic-dim', 609)
 WIP = cfg_data.get('word-in-phrase-index', 582)

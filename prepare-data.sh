@@ -4,7 +4,7 @@ PRJDIR=`dirname $0`
 SRCDIR=$PRJDIR/src
 DATDIR=$PRJDIR/data
 WAVDIR=$DATDIR/wav
-CFG=$PRJDIR/config/m60p10ff/ahn18.json
+CFG=$PRJDIR/config/final.json
 SCP=$DATDIR/both.scp
 
 source $PRJDIR/setup.sh
@@ -20,10 +20,10 @@ source activate thesis
 
 # echo Realigning states >&2
 # $SRCDIR/realign-states.py -s $SCP -c $CFG || exit -1
-#
+
 # echo Creating labels >&2
 # $SRCDIR/create-labels.py -s $SCP -c $CFG || exit -1
-#
+
 # echo Trimming silent frames >&2
 # $SRCDIR/trim-acoustics.py -s $SCP -c $CFG || exit -1
 

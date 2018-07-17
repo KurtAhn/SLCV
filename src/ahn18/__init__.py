@@ -11,15 +11,12 @@ import numpy as np
 
 NL = ds.LX_DIM
 NC = ds.NC
-# NC = cfg_net.get('nc', 2)
-# NH = cfg_enc.get('nh', 64)
-# DH = cfg_enc.get('dh', 6)
 NA = ds.AX_DIM
 NE = cfg_enc.get('ne', 300)
-NP = cfg_enc.get('np', 300)
-DP = cfg_enc.get('dp', 0)
+NF = cfg_enc.get('nf', 300)
+DF = cfg_enc.get('df', 1)
+NR = cfg_enc.get('nr', 300)
 DR = cfg_enc.get('dr', 1)
-# RP = 1e-5
 USE_LSTM = cfg_enc.get('lstm', True)
 DEVICE = cfg_enc.get('device', 'cpu')
 DEVICE = '/gpu:0' if DEVICE == 'gpu' else '/cpu:0'
@@ -30,94 +27,204 @@ class Encoder(Model):
         Model.__init__(self, 'Encoder', **kwargs)
 
     def _create(self, **kwargs):
+        vocab = kwargs['vocab']
+        embed = kwargs['embed']
+
         winit = tf.contrib.layers.xavier_initializer()
         wfunc = tf.nn.tanh
+        binit = tf.zeros
         rinit = tf.contrib.layers.variance_scaling_initializer()
         rfunc = tf.nn.relu
-        pinit = rinit #lambda shape: tf.random_normal(shape, stddev=0.1)
+        pinit = winit
 
         with tf.device(DEVICE):
             with tf.name_scope(self.name) as scope:
-                tf.placeholder('float', [None, None, NE], name='e')
-                tf.placeholder('int64', [None], name='n')
+                tf.placeholder('string', [None, None], name='w')
+                tf.placeholder('int32', [None], name='n')
                 tf.placeholder('float', [None, NC], name='s_')
 
+                tf.placeholder('float', name='keep_prob')
                 self._optimizer = tf.train.AdamOptimizer(
-                    learning_rate=tf.placeholder('float', name='learning_rate')
+                    tf.maximum(
+                        tf.train.exponential_decay(
+                            tf.placeholder('float', name='learning_rate'),
+                            tf.Variable(0, trainable=False, dtype='int32', name='global_step'),
+                            tf.placeholder('int32', name='dataset_size'),
+                            tf.placeholder('float', name='decay_rate'),
+                            False
+                        ),
+                        tf.placeholder('float', name='min_learning_rate')
+                    )
+                )
+                tf.assign(self.global_step, self.global_step + 1)
+                tf.placeholder('float', name='clip_threshold')
+
+                table = tf.contrib.lookup.index_table_from_tensor(
+                    mapping=tf.constant(vocab),
+                    # num_oov_buckets=1,
+                    name='T'
                 )
 
-                if DP > 0:
-                    tf.Variable(winit([NE,NP]), name='W0')
-                    tf.Variable(winit([1,NP]), name='b0')
-                    h = tf.scan(lambda a, x: wfunc(x @ self['W0'] + self['b0']), self['e'])
-                    # h = wfunc(self['e'] @ self['W0'] + self['b0'])
-                    if DP > 1:
-                        for d in range(1,DP):
-                            Wd = 'W{}'.format(d)
-                            bd = 'b{}'.format(d)
-                            tf.Variable(winit([NP,NP]), name=Wd)
-                            tf.Variable(winit([1,NP]), name=bd)
-                            h = tf.scan(lambda a, x: wfunc(x @ self[Wd] + self[bd]), self['e'])
-                            # h = wfunc(h @ self[Wd] + self[bd])
-                else:
-                    h = self['e']
+                tf.Variable(embed, dtype='float', name='E', trainable=True)
+                if DF > 0:
+                    tf.Variable(winit([NE,NF]), name='W0')
+                    tf.Variable(binit([1,NF]), name='b0')
+                    if DF > 1:
+                        for d in range(1, DF):
+                            tf.Variable(winit([NF,NF]), name='W{}'.format(d))
+                            tf.Variable(winit([1,NF]), name='b{}'.format(d))
+                def mf(x):
+                    y = tf.nn.embedding_lookup(self.E, table.lookup(x))
+                    for d in range(DF):
+                        y = wfunc(y @ self['W{}'.format(d)] + self['b{}'.format(d)])
+                    return y
+                h = tf.map_fn(mf, self.w, dtype='float')
 
                 cell_type = tf.nn.rnn_cell.BasicLSTMCell if USE_LSTM else \
                             tf.nn.rnn_cell.GRUCell
 
-                with tf.variable_scope('brnn', initializer=rinit):
-                    cells = tf.nn.rnn_cell.MultiRNNCell(
-                        [cell_type(num_units=NP, activation=rfunc) for d in range(DR)],
-                        state_is_tuple=True
+                self._brnn(cell_type, rinit, rfunc, pinit)(h)
+                # self._cnn(rfunc, pinit)(h)
+
+                tf.reduce_mean(tf.abs(self.s - self.s_), name='j')
+                # self.optimizer.minimize(self.j, name='o')
+                self.optimizer.apply_gradients(
+                    [(tf.clip_by_value(g, -self.clip_threshold, self.clip_threshold), v)
+                     for g, v in self.optimizer.compute_gradients(self.j)],
+                    name='o'
+                )
+
+    def _rnn(self, cell_type, rinit, rfunc, pinit):
+        def wrapper(h):
+            with tf.variable_scope('rnn', initializer=rinit):
+                cells = tf.nn.rnn_cell.MultiRNNCell(
+                    [tf.nn.rnn_cell.DropoutWrapper(
+                        cell_type(num_units=NR, activation=rfunc),
+                        output_keep_prob=self.keep_prob
+                     )
+                     for d in range(DR)],
+                    state_is_tuple=True
+                )
+
+                y, q = tf.nn.dynamic_rnn(
+                    cell=cells,
+                    inputs=h,
+                    sequence_length=self.n,
+                    dtype='float',
+                    time_major=False
+                )
+
+            if USE_LSTM:
+                tf.identity(y[-1], name='q')
+            else:
+                # tf.identity(q[-1], name='q')
+                tf.identity(y[-1], name='q')
+
+            tf.Variable(pinit([NR, NC]), name='P')
+            tf.matmul(self.q, self.P, name='s')
+        return wrapper
+
+    def _brnn(self, cell_type, rinit, rfunc, pinit):
+        def wrapper(h):
+            with tf.variable_scope('brnn', initializer=rinit):
+                cells = tf.nn.rnn_cell.MultiRNNCell(
+                    [tf.nn.rnn_cell.DropoutWrapper(
+                        cell_type(num_units=NR, activation=rfunc),
+                        output_keep_prob=self.keep_prob
+                     )
+                     for d in range(DR)],
+                    state_is_tuple=True
+                )
+
+                y, q = tf.nn.bidirectional_dynamic_rnn(
+                    cell_fw=cells,
+                    cell_bw=cells,
+                    inputs=h,
+                    sequence_length=self.n,
+                    dtype='float',
+                    time_major=False
+                )
+
+            if USE_LSTM:
+                tf.concat([y[0][-1], y[1][-1]], axis=1, name='q')
+            else:
+                tf.concat([y[0][-1], y[1][-1]], axis=1, name='q')
+
+            tf.Variable(pinit([2*NR, NC]), name='P')
+            tf.matmul(self.q, self.P, name='s')
+        return wrapper
+
+    def _cnn(self, activation, pinit):
+        def wrapper(h):
+            h = tf.expand_dims(h, -1)
+            outputs = []
+            n_max = 2
+            for n in range(2, n_max+1):
+                with tf.variable_scope('cnn{}'.format(n)):
+                    l = h
+                    for d in range(DR):
+                        l = tf.nn.conv2d(
+                            h,
+                            tf.Variable(tf.truncated_normal([n, NE, 1, 1], stddev=0.01), name='W'),
+                            strides=[1,1,1,1],
+                            padding='SAME'
+                        )
+                        l = tf.nn.relu(
+                            tf.nn.bias_add(l,
+                                           tf.Variable(tf.zeros([1]), name='b')))
+                    l = tf.nn.max_pool(
+                        l,
+                        ksize=[1, 46-n+1, 1, 1],
+                        strides=[1,1,1,1],
+                        padding='SAME'
                     )
-
-                    y, q = tf.nn.bidirectional_dynamic_rnn(
-                        cell_fw=cells,
-                        cell_bw=cells,
-                        inputs=h,
-                        sequence_length=self['n'],
-                        dtype='float',
-                        time_major=False
-                    )
-
-                if USE_LSTM:
-                    tf.concat([q[0][-1].h, q[1][-1].h], axis=1, name='q')
-                else:
-                    tf.concat([q[0][-1], q[1][-1]], axis=1, name='q')
-
-                tf.Variable(pinit([2*NP, NC]), name='P')
-                tf.matmul(self['q'], self['P'], name='s')
-                tf.reduce_mean(tf.square(self['s'] - self['s_']), name='j')
-                self.optimizer.minimize(self['j'], name='o')
+                    outputs.append(l)
+            q = tf.reshape(tf.stack(outputs), [-1, len(outputs)], name='q')
+            tf.nn.dropout(q, self.keep_prob, name='q')
+            tf.Variable(pinit([len(outputs), NC]), name='P')
+            tf.matmul(self.q, self.P, name='s')
+        return wrapper
 
     def encode(self, tokens, lengths, targets, train=False, **kwargs):
-        learning_rate = kwargs.get('learning_rate', 0.001)
+        learning_rate = kwargs.get('learning_rate', 1e-4)
+        min_learning_rate = kwargs.get('min_learning_rate', 1e-8)
+        decay_rate = kwargs.get('decay_rate', 1.0)
+        clip_threshold = kwargs.get('clip_threshold', 5.0)
+        dataset_size = kwargs.get('dataset_size', 7000)
+        keep_prob = kwargs.get('keep_prob', 1.0)
         session = tf.get_default_session()
         if train:
             return session.run(
-                [self['s'], self['j'], self['o']],
+                [self.s, self.j, self.o, self.global_step],
                 feed_dict={
-                    self['e']: tokens,
-                    self['n']: lengths,
-                    self['s_']: targets,
-                    self['learning_rate']: learning_rate
+                    self.w: tokens,
+                    self.n: lengths,
+                    self.s_: targets,
+                    self.learning_rate: learning_rate,
+                    self.min_learning_rate: min_learning_rate,
+                    self.decay_rate: decay_rate,
+                    self.clip_threshold: self.clip_threshold,
+                    self.dataset_size: dataset_size,
+                    self.keep_prob: keep_prob
                 }
-            )[:-1]
+            )[:2]
         elif targets is not None:
             return session.run(
-                [self['s'], self['j']],
+                [self.s, self.j],
                 feed_dict={
-                    self['e']: tokens,
-                    self['n']: lengths,
-                    self['s_']: targets
+                    self.w: tokens,
+                    self.n: lengths,
+                    self.s_: targets,
+                    self.keep_prob: 1.0
                 }
             )
         else:
             return session.run(
-                [self['s']],
+                [self.s],
                 feed_dict={
-                    self['e']: tokens,
-                    self['n']: lengths
+                    self.w: tokens,
+                    self.n: lengths,
+                    self.keep_prob: 1.0
                 }
             )
 
@@ -249,6 +356,36 @@ def load_encoder_dataset(sentences, oracle=None):
              ))
         )
 
+
+def load_encoder_dataset2(sentences, oracle=None):
+    dataset = TFRecordDataset([path.join(DSSDIR, sentence+'.tfr')
+                               for sentence in sentences])\
+        .map(
+            lambda record: \
+                tf.parse_single_example(
+                    record,
+                    features={
+                        's': tf.FixedLenFeature([], tf.string),
+                        'w': tf.FixedLenSequenceFeature([], tf.string,
+                                                        allow_missing=True),
+                        'n': tf.FixedLenFeature([], tf.int64)
+                    }
+                )
+        )
+
+    if oracle is None:
+        return dataset.map(lambda feature: (feature['w'], feature['n']))
+    else:
+        indices = {s: n for n, s in enumerate(sentences)}
+        return dataset.map(lambda feature: \
+            (feature['w'],
+             feature['n'],
+             tf.py_func(
+                lambda s: oracle[indices[s.decode('ascii')],:].reshape(NC),
+                [feature['s']],
+                tf.float32
+             ))
+        )
 
 def load_synthesizer_dataset(sentences, oracle=None):
     indices = {s: n for n, s in enumerate(sentences)}

@@ -16,12 +16,13 @@ from os import path
 from argparse import ArgumentParser
 
 
-def extract(sentence, wavdir, outdir):
+def extract(sentence, wavdir, outdir, const_rate):
     try:
         mp.analysis_for_acoustic_modelling(path.join(wavdir, sentence+'.wav'),
                                            outdir,
                                            mag_dim=cfg_data.get('nm', 60),
-                                           phase_dim=cfg_data.get('np', 45))
+                                           phase_dim=cfg_data.get('np', 45),
+                                           b_const_rate=const_rate)
     except (KeyboardInterrupt, SystemExit):
         raise
     except:
@@ -45,11 +46,13 @@ if __name__ == '__main__':
     load_config(a.config)
     from __init__ import *
 
+    CONST_RATE = cfg_data.get('const', True)
+
     with open(a.senlst) as f:
         sentences = [l.rstrip() for l in f]
 
     if a.debug:
         for s in sentences:
-            extract(s, WAVDIR, ACO1DIR)
+            extract(s, WAVDIR, ACO1DIR, CONST_RATE)
     else:
-        lu.run_multithreaded(extract, sentences, WAVDIR, ACO1DIR)
+        lu.run_multithreaded(extract, sentences, WAVDIR, ACO1DIR, CONST_RATE)
