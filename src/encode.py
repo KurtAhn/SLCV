@@ -30,13 +30,14 @@ if __name__ == '__main__':
     with open(a.senlst) as f:
         sentences = [l.rstrip() for l in f]
 
-    data = load_encoder_dataset(sentences)\
-           .padded_batch(1, padded_shapes=([None,NE],[]))\
+    data = load_encoder_dataset2(sentences)\
+           .padded_batch(1, padded_shapes=([None],[]))\
            .make_initializable_iterator()
     example = data.get_next()
 
     with tf.Session().as_default() as session:
-        model = Encoder(mdldir=path.join(MDLAEDIR, a.model), epoch=a.epoch)
+        model = Encoder(mdldir=path.join(MDLEDIR, a.model), epoch=a.epoch)
+        session.run(tf.tables_initializer())
         session.run(data.initializer)
 
         # oracle = []

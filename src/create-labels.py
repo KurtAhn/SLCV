@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 from __init__ import load_config
 import sys, os
+sys.path.append(os.environ['MAGPHASE'])
+import libutils as lu
 sys.path.append(os.environ['MERLIN'])
 from frontend.label_normalisation import HTSLabelNormalisation
 from frontend.silence_remover import SilenceRemover, trim_silence
@@ -35,4 +37,9 @@ if __name__ == '__main__':
     normalizer = MinMaxNormalisation(feature_dimension=binarizer.dimension,
                                      min_value=0.01, max_value=0.99)
     normalizer.find_min_max_values(lab2)
-    normalizer.normalise_data(lab2, lab3)
+    print1(normalizer.min_vector)
+    print1(normalizer.max_vector)
+    lu.write_binfile(normalizer.min_vector, path.join(LABSDIR, 'min'))
+    lu.write_binfile(normalizer.max_vector, path.join(LABSDIR, 'max'))
+
+    # normalizer.normalise_data(lab2, lab3)

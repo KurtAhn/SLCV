@@ -9,12 +9,17 @@ import numpy as np
 np.warnings.filterwarnings('ignore')
 from argparse import ArgumentParser
 
+from fastdtw import fastdtw
+from scipy.spatial.distance import euclidean
+
+def c
+
 
 if __name__ == '__main__':
     p = ArgumentParser()
     p.add_argument('-c', '--config', dest='config', required=True)
     p.add_argument('-s', '--senlst', dest='senlst', required=True)
-    p.add_argument('-h', '--hypothesis', dest='hypothesis', required=True)
+    p.add_argument('-d', '--directory', dest='directory', required=True)
     a = p.parse_args()
 
     load_config(a.config)
@@ -24,22 +29,25 @@ if __name__ == '__main__':
     with open(a.senlst) as f:
         sentences = [l.rstrip() for l in f]
 
-    mcd_computer = IndividualDistortionComp()
-    distortions = {
-        f: mcd_computer.compute_distortion(sentences, ACO2DIR, a.hypothesis, '.'+f, d)
-        for f, d in [('mag', ax.MAG_DIM),
-                     ('real', ax.REAL_DIM),
-                     ('imag', ax.IMAG_DIM),
-                     ('lf0', ax.LF0_DIM)]
-    }
+    for sentence in sentences:
 
-    print1('MAG:{:.3f}dB; '
-           'REAL:{:.3f}dB; '
-           'IMAG:{:.3f}dB; '
-           'LF0 RMSE: {:.3f}Hz; CORR: {:.3f}; VUV: {:.3f}%'.format(
-               distortions['mag'],
-               distortions['real'],
-               distortions['imag'],
-               *distortions['lf0'][:2],
-               distortions['lf0'][-1] * 100.0
-           ))
+
+    # mcd_computer = IndividualDistortionComp()
+    # distortions = {
+    #     f: mcd_computer.compute_distortion(sentences, ACO2DIR, a.directory, '.'+f, d)
+    #     for f, d in [('mag', ax.MAG_DIM),
+    #                  ('real', ax.REAL_DIM),
+    #                  ('imag', ax.IMAG_DIM),
+    #                  ('lf0', ax.LF0_DIM)]
+    # }
+    #
+    # print1('MAG:{:.3f}dB; '
+    #        'REAL:{:.3f}dB; '
+    #        'IMAG:{:.3f}dB; '
+    #        'LF0 RMSE: {:.3f}Hz; CORR: {:.3f}; VUV: {:.3f}%'.format(
+    #            distortions['mag'],
+    #            distortions['real'],
+    #            distortions['imag'],
+    #            *distortions['lf0'][:2],
+    #            distortions['lf0'][-1] * 100.0
+    #        ))

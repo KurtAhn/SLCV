@@ -25,13 +25,16 @@ if __name__ == '__main__':
     p.add_argument('-m', '--model', dest='model', required=True)
     p.add_argument('-e', '--epoch', dest='epoch', type=int, default=0)
     p.add_argument('-E', '--until', dest='until', type=int, default=0)
+    p.add_argument('-p', '--unpacker', dest='unpacker', default=None)
     p.add_argument('--batch', dest='batch', type=int, default=256)
     p.add_argument('--size', dest='size', type=int, default=None)
     p.add_argument('--reg-factor', dest='reg_factor', type=float, default=1e-5)
     p.add_argument('--split', dest='split', type=float, default=0.9)
     p.add_argument('--learning-rate', dest='learning_rate', type=float, default=1e-4)
     p.add_argument('--decay-rate', dest='decay_rate', type=float, default=1.0)
+    p.add_argument('--min-learning-rate', dest='min_learning_rate', type=float, default=0)
     p.add_argument('--projection-factor', dest='projection_factor', type=float, default=1.0)
+    p.add_argument('--output-factor', dest='output_factor', type=float, default=1.0)
     p.add_argument('--keep-prob', dest='keep_prob', type=float, default=1.0)
     a = p.parse_args()
 
@@ -42,10 +45,10 @@ if __name__ == '__main__':
     from __init__ import *
     import acoustic as ax
     import dataset as ds
-    from watts15 import *
+    from model import *
     import util
 
-    mdldir = path.join(MDLWDIR, a.model)
+    mdldir = path.join(MDLSDIR, a.model)
     try:
         mkdir(mdldir)
     except FileExistsError:
@@ -55,9 +58,6 @@ if __name__ == '__main__':
     debug_log = path.join(mdldir, 'debug.txt')
     with open(debug_log, 'a') as f:
         f.write('---------------------------\n')
-        f.write('NC: {}\n'.format(NC))
-        f.write('NH: {}\n'.format(NH))
-        f.write('DH: {}\n'.format(DH))
         for k, v in vars(a).items():
             f.write('{}: {}\n'.format(k, v))
         f.flush()
@@ -67,7 +67,7 @@ if __name__ == '__main__':
 
     if a.size is None:
         print2('Counting examples')
-        size = ds.count_examples([path.join(DSATDIR, s+'.tfr')
+        size = ds.count_examples([path.join(TFRSDIR, s+'.tfr')
                                for s in sentences])
     else:
         size = a.size
@@ -78,73 +78,96 @@ if __name__ == '__main__':
         f.write('split: {}\n'.format(a.split))
         f.write('---------------------------\n')
 
-    data = load_dataset(Random(SEED).sample(sentences, len(sentences)))\
-           .batch(a.batch)\
-           .shuffle(buffer_size=500,
-                    seed=SEED,
-                    reshuffle_each_iteration=False)\
-           .make_initializable_iterator()
-    example = data.get_next()
+    session_config = tf.ConfigProto(allow_soft_placement=True,
+                                    log_device_placement=False)
+    session_config.gpu_options.allow_growth = True
+    with tf.Graph().as_default() as graph:
+        with tf.Session(config=session_config, graph=graph).as_default() as session:
+            data = ds.load_synthesizer_dataset(Random(SEED).sample(sentences, len(sentences)))\
+                   .batch(a.batch)\
+                   .shuffle(buffer_size=100,
+                            seed=SEED,
+                            reshuffle_each_iteration=False)\
+                   .make_initializable_iterator()
+            example = data.get_next()
     print2('Dataset created')
 
     error_log = path.join(mdldir, 'error.txt')
 
-    session_config = tf.ConfigProto(allow_soft_placement=True,
-                                    log_device_placement=False)
-    session_config.gpu_options.allow_growth = True
-    with tf.Session(config=session_config).as_default() as session:
-        if a.epoch == 0:
-            model = Synthesizer(sentences=sentences)
-            session.run(tf.global_variables_initializer())
-            session.run(tf.tables_initializer())
-        else:
-            model = Synthesizer(mdldir=mdldir, epoch=a.epoch)
-            session.run(tf.tables_initializer())
-        print2('Model created')
+    if a.unpacker is not None:
+        u_model, u_epoch = a.unpacker.split('/')
+        with tf.Graph().as_default() as u_graph:
+            with tf.Session(config=session_config, graph=u_graph).as_default() as u_session:
+                unpacker = Unpacker(mdldir=path.join(MDLUDIR, u_model), epoch=int(u_epoch))
+                P = u_session.run(unpacker.P)
+                print2(P.shape)
+    else:
+        P = None
 
-        saver = tf.train.Saver(max_to_keep=0)
+    with graph.as_default():
+        with session.as_default():
+            if a.epoch == 0:
+                model = Synthesizer(sentences=sentences, P=P)
+                session.run(tf.global_variables_initializer())
+                session.run(tf.tables_initializer())
+            else:
+                model = Synthesizer(mdldir=mdldir, epoch=a.epoch)
+                session.run(tf.tables_initializer())
+            print2('Model created')
 
-        epoch = a.epoch+1
-        v_loss = None
-        while True:
-            t_report = util.Report(epoch, mode='t')
-            session.run(data.initializer)
+            saver = tf.train.Saver(max_to_keep=0)
+            t_summary = tf.summary.FileWriter(path.join(mdldir, 'train'), graph=session.graph)
+            v_summary = tf.summary.FileWriter(path.join(mdldir, 'valid'), graph=session.graph)
 
-            while t_report.iterations < t_size:
-                try:
-                    out, loss = model.train(*session.run(example),
-                                            train=True,
-                                            reg_factor=a.reg_factor,
-                                            learning_rate=a.learning_rate,
-                                            decay_rate=a.decay_rate,
-                                            projection_factor=a.projection_factor,
-                                            dataset_size=t_size,
-                                            keep_prob=a.keep_prob)
-                    t_report.report(loss)
-                except tf.errors.OutOfRangeError:
-                    break
-            print2()
-
-
-            v_report = util.Report(epoch, mode='v')
+            epoch = a.epoch+1
+            v_loss = None
             while True:
-                try:
-                    out, loss = model.train(*session.run(example),
-                                            train=False)
-                    v_report.report(loss)
-                except tf.errors.OutOfRangeError:
+                t_report = util.Report(epoch, mode='t')
+                session.run(data.initializer)
+
+                while t_report.iterations < t_size:
+                    try:
+                        out, loss, summary, step = model.train(
+                            *session.run(example),
+                            train=True,
+                            reg_factor=a.reg_factor,
+                            learning_rate=a.learning_rate,
+                            decay_rate=a.decay_rate,
+                            min_learning_rate=a.min_learning_rate,
+                            projection_factor=a.projection_factor,
+                            output_factor=a.output_factor,
+                            dataset_size=t_size,
+                            keep_prob=a.keep_prob
+                        )
+                        t_report.report(loss)
+                        t_summary.add_summary(summary, global_step=step)
+                    except tf.errors.OutOfRangeError:
+                        break
+                print2()
+
+
+                v_report = util.Report(epoch, mode='v')
+                while True:
+                    try:
+                        out, loss, summary, step = model.train(
+                            *session.run(example),
+                            train=False
+                        )
+                        v_report.report(loss)
+                        v_summary.add_summary(summary, global_step=step)
+                    except tf.errors.OutOfRangeError:
+                        break
+                print2()
+
+                with open(error_log, 'a') as f:
+                    f.write("{},{:.3e},{:.3e}\n"\
+                            .format(epoch, t_report.avg_loss, v_report.avg_loss))
+                    f.flush()
+
+                model.save(saver, mdldir, epoch)
+                epoch += 1
+
+                v_loss = v_report.avg_loss
+
+                if a.until > 0 and epoch > a.until:
                     break
-            print2()
-
-            with open(error_log, 'a') as f:
-                f.write("{},{:.3e},{:.3e}\n"\
-                        .format(epoch, t_report.avg_loss, v_report.avg_loss))
-                f.flush()
-
-            model.save(saver, mdldir, epoch)
-            epoch += 1
-
-            v_loss = v_report.avg_loss
-
-            if a.until > 0 and epoch > a.until:
-                break

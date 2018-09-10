@@ -49,6 +49,7 @@ def velocity(a):
 def acceleration(a):
     return window(a, np.array([1.0, -2.0, 1.0]))
 
+
 def interpolate_f0(a, kind='linear'):
     a = np.copy(a)
     vi = np.where(a[:,LF0] > 0.0)[0]
@@ -60,6 +61,7 @@ def interpolate_f0(a, kind='linear'):
                                    fill_value='extrapolate')
     a[:, LF0] = i(np.arange(a.shape[0]))
     return a
+
 
 def voicing(a, threshold):
     b = np.zeros([a.shape[0], 1])

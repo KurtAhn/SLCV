@@ -2,8 +2,6 @@
 from __init__ import load_config
 import sys, os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-sys.path.append(os.environ['MERLIN'])
-from utils.compute_distortion import IndividualDistortionComp
 sys.path.append(os.environ['MAGPHASE'])
 import libutils as lu
 from subprocess import call
@@ -19,11 +17,10 @@ if __name__ == '__main__':
     p = ArgumentParser()
     p.add_argument('-c', '--config', dest='config', required=True)
     p.add_argument('-s', '--senlst', dest='senlst', required=True)
-    p.add_argument('-m', '--model', dest='model', required=True)
-    p.add_argument('-e', '--epoch', dest='epoch', type=int, required=True)
+    p.add_argument('-1', '--synthesizer', dest='synthesizer', required=True)
     p.add_argument('-v', '--vector', dest='vector', type=float, nargs='+', required=True)
-    p.add_argument('-o', '--oracle', dest='oracle', default=None)
-    p.add_argument('output', required=True)
+    p.add_argument('-o', '--oracle', dest='oracle', action='store_true')
+    p.add_argument('-d', '--directory', dest='directory', required=True)
     # p.add_argument('-p', '--plot-f0', dest='plot_f0', action='store_true')
     a = p.parse_args()
 
@@ -31,40 +28,35 @@ if __name__ == '__main__':
     from __init__ import *
     import acoustic as ax
     import dataset as ds
-    from watts15 import *
+    from model import *
 
     if len(a.vector) != ds.NC:
         raise ValueError('Vector dimension must be {}'.format(ds.NC))
 
+    model, epoch = a.synthesizer.split('/')
+
     with open(a.senlst) as f:
         sentences = [l.rstrip() for l in f]
 
-    mean = lu.read_binfile(path.join(STTDIR, 'mean'), dim=ds.AX_DIM)
-    stddev = lu.read_binfile(path.join(STTDIR, 'stddev'), dim=ds.AX_DIM)
+    mean = lu.read_binfile(path.join(ACOSDIR, 'mean'), dim=ds.NA)
+    stddev = lu.read_binfile(path.join(ACOSDIR, 'stddev'), dim=ds.NA)
 
-    outdir = SYNWDIR
-    for level in [a.model,
-                  str(a.epoch),
-                  a.output,
-                  )]:
+    outdir = SYNDIR
+    for level in [model,
+                  epoch,
+                  a.directory]:
         outdir = path.join(outdir, level)
         try:
             mkdir(outdir)
         except FileExistsError:
             pass
 
-    if a.oracle is not None:
-        with open(path.join(ORCWDIR, '{}/{}.orc'.format(a.model, a.epoch)), 'rb') as f:
-        # with open(a.oracle, 'rb') as f:
-            oracle = np.load(f)
-
     session_config = tf.ConfigProto(allow_soft_placement=True,
                                     log_device_placement=False)
     session_config.gpu_options.allow_growth = True
     with tf.Session(config=session_config).as_default() as session:
-        model = Synthesizer(mdldir=path.join(MDLWDIR, a.model), epoch=a.epoch)
+        model = Synthesizer(mdldir=path.join(MDLSDIR, model), epoch=int(epoch))
         session.run(tf.tables_initializer())
-        # print2('Model loaded')
 
         for sentence in sentences:
             if a.oracle:
@@ -74,14 +66,16 @@ if __name__ == '__main__':
                 vector = np.array(a.vector).reshape(1,-1)
             # print2(vector)
 
-            data = load_dataset([sentence])\
+            data = ds.load_synthesizer_dataset([sentence])\
                    .make_one_shot_iterator()
             example = data.get_next()
 
             outs = []
             while True:
                 try:
-                    out, = model.synth(session.run(example)[0].reshape(1,-1),
+                    x = session.run(example)[0].reshape(1,-1)
+                    # print1(x[0,557:600])
+                    out, = model.synth(x.reshape(1,-1),
                                        vector)
                     outs.append(out)
                 except tf.errors.OutOfRangeError:

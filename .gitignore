@@ -3,3 +3,4 @@ data/
 /config/
 /config.json
 setup.sh
+src/plot*.py
